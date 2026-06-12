@@ -46,7 +46,7 @@ public class CombatEventsClient {
                 float pitch = attackHand.attack().hitbox().equals(WeaponAttributes.HitBoxShape.FORWARD_BOX) ? 0.25F : 1.0F;
                 float range = (float) (attackHand.attributes().attackRange() == 0.0
                     ? 4.5
-                    : attackHand.attributes().attackRange() + attackHand.attributes().rangeBonus());
+                    : attackHand.attributes().attackRange());
                 PacketByteBuf buf = PacketByteBufs.create();
                 new Packet.Packets(yaw, pitch, range).write(buf);
                 ClientPlayNetworking.send(Packet.Packets.ID, buf);

@@ -106,7 +106,7 @@ public class LivingEntityMixin implements HitstopAccessor {
     protected void applyDamageHitstop(DamageSource source, float amount, CallbackInfoReturnable<Boolean> info) {
         LivingEntity living = (LivingEntity) (Object) this;
         if (VisceralCombat.config.hitstopEnemies
-                && source.isDirect()
+                && !source.isIndirect()
                 && source.getAttacker() instanceof HitstopAccessor
                 && source.getAttacker() instanceof PlayerEntity hurt
                 && hurt.getAttributeInstance(EntityAttributes.GENERIC_ATTACK_SPEED) != null) {

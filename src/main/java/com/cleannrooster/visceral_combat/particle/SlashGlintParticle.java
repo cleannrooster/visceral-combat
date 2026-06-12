@@ -5,7 +5,7 @@ import net.fabricmc.api.Environment;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.particle.*;
 import net.minecraft.client.world.ClientWorld;
-import net.minecraft.particle.SimpleParticleType;
+import net.minecraft.particle.DefaultParticleType;
 
 @Environment(EnvType.CLIENT)
 public class SlashGlintParticle extends SpriteBillboardParticle {
@@ -90,14 +90,17 @@ public class SlashGlintParticle extends SpriteBillboardParticle {
         double dy = mc.player.getEyeY() - this.y;
         double dz = mc.player.getZ() - this.z;
         double distSq = dx * dx + dy * dy + dz * dz;
-        if (distSq >= 4.00) return 1.0f;
-        if (distSq <= 0.64) return 0.0f;
-        float t = (float) ((distSq - 0.64) / (4.00 - 0.64));
+        boolean firstPerson = mc.options.getPerspective().isFirstPerson();
+        double hideThresh  = firstPerson ? 4.00 : 0.64;
+        double fadeThresh  = firstPerson ? 9.00 : 4.00;
+        if (distSq >= fadeThresh) return 1.0f;
+        if (distSq <= hideThresh) return 0.0f;
+        float t = (float) ((distSq - hideThresh) / (fadeThresh - hideThresh));
         return t * t;
     }
 
     @Environment(EnvType.CLIENT)
-    public static class Factory implements ParticleFactory<SimpleParticleType> {
+    public static class Factory implements ParticleFactory<DefaultParticleType> {
         private final SpriteProvider spriteProvider;
 
         public Factory(SpriteProvider spriteProvider) {
@@ -105,7 +108,7 @@ public class SlashGlintParticle extends SpriteBillboardParticle {
         }
 
         @Override
-        public Particle createParticle(SimpleParticleType type, ClientWorld world,
+        public Particle createParticle(DefaultParticleType type, ClientWorld world,
                                        double x, double y, double z,
                                        double velocityX, double velocityY, double velocityZ) {
             return new SlashGlintParticle(world, x, y, z, velocityX, velocityY, velocityZ, this.spriteProvider);
