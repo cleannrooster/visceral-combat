@@ -1,5 +1,6 @@
 package com.cleannrooster.visceral_combat;
 
+import com.cleannrooster.visceral_combat.config.ConfigSync;
 import com.cleannrooster.visceral_combat.config.ServerConfig;
 import com.cleannrooster.visceral_combat.config.ServerConfigWrapper;
 import com.cleannrooster.visceral_combat.networking.ServerNetworkHandler;
@@ -9,8 +10,8 @@ import me.shedaniel.autoconfig.AutoConfig;
 import me.shedaniel.autoconfig.serializer.JanksonConfigSerializer;
 import me.shedaniel.autoconfig.serializer.PartitioningSerializer;
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,8 +27,8 @@ public class VisceralCombat implements ModInitializer {
         AutoConfig.register(ServerConfigWrapper.class, PartitioningSerializer.wrap(JanksonConfigSerializer::new));
         config = AutoConfig.getConfigHolder(ServerConfigWrapper.class).getConfig().server;
 
-        ServerLifecycleEvents.SYNC_DATA_PACK_CONTENTS.register((player, joined) ->
-            ServerPlayNetworking.send(player, new com.cleannrooster.visceral_combat.config.ConfigSync(config))
+        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
+            ServerPlayNetworking.send(handler.player, ConfigSync.ID, ConfigSync.write(config))
         );
 
         ModParticles.register();

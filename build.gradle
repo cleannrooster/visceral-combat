@@ -30,7 +30,7 @@ dependencies {
 	mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
 	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
-	modImplementation "maven.modrinth:better-combat:2.3.0+1.21.1-fabric"
+	modImplementation "maven.modrinth:better-combat:2.1.2+1.20.1-fabric"
 	modImplementation("me.shedaniel.cloth:cloth-config-fabric:${project.cloth_config_version}")
     modImplementation("dev.kosmx.player-anim:player-animation-lib-fabric:${project.player_anim_version}")
 
@@ -45,13 +45,13 @@ processResources {
 }
 
 tasks.withType(JavaCompile).configureEach {
-	it.options.release = 21
+	it.options.release = 17
 }
 
 java {
 	withSourcesJar()
-	sourceCompatibility = JavaVersion.VERSION_21
-	targetCompatibility = JavaVersion.VERSION_21
+	sourceCompatibility = JavaVersion.VERSION_17
+	targetCompatibility = JavaVersion.VERSION_17
 }
 
 jar {

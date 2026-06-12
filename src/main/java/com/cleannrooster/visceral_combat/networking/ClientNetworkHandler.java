@@ -12,13 +12,15 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 public class ClientNetworkHandler {
 
     public static void register() {
-        ClientPlayNetworking.registerGlobalReceiver(ConfigSync.PACKET_ID, (payload, context) -> {
-            VisceralCombatClient.clientConfig = payload.config();
-            VisceralCombat.config = payload.config();
+        ClientPlayNetworking.registerGlobalReceiver(ConfigSync.ID, (client, handler, buf, responseSender) -> {
+            var config = ConfigSync.read(buf);
+            VisceralCombatClient.clientConfig = config;
+            VisceralCombat.config = config;
         });
 
-        ClientPlayNetworking.registerGlobalReceiver(Packet.HolsterAssert.PACKET_ID, (payload, context) -> {
-            if (context.player() instanceof HitstopAccessor accessor) {
+        ClientPlayNetworking.registerGlobalReceiver(Packet.HolsterAssert.ID, (client, handler, buf, responseSender) -> {
+            var payload = Packet.HolsterAssert.read(buf);
+            if (client.player instanceof HitstopAccessor accessor) {
                 accessor.setHolster(payload.bool());
             }
         });

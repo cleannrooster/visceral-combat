@@ -2,6 +2,7 @@ package com.cleannrooster.visceral_combat.particle;
 
 import com.cleannrooster.visceral_combat.util.TickScheduler;
 import com.cleannrooster.visceral_combat.util.VectorHelper;
+import net.minecraft.util.math.MathHelper;
 import net.fabricmc.fabric.api.networking.v1.PlayerLookup;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -70,7 +71,7 @@ public class SlashParticleHandler {
             if (entity.getRandom().nextFloat() > edgeTaper * 0.88f + 0.12f) continue;
 
             float radius = (float) (radiusBase * (0.98 + entity.getRandom().nextGaussian() * 0.04));
-            radius = Math.clamp(radius, radiusBase * 0.88f, radiusBase * 1.10f);
+            radius = MathHelper.clamp(radius, radiusBase * 0.88f, radiusBase * 1.10f);
 
             Vec3d pos;
             Vec3d tangent;
@@ -95,7 +96,7 @@ public class SlashParticleHandler {
         int fillCount = FILL_PER_TICK + entity.getRandom().nextInt(5) - 2;
         for (int p = 0; p < fillCount; p++) {
             float t = tCenter + (float) (entity.getRandom().nextGaussian() * tHalf * 0.65f);
-            float arcProgress = Math.clamp((t - sweepStart) / sweepRad, 0.0f, 1.0f);
+            float arcProgress = MathHelper.clamp((t - sweepStart) / sweepRad, 0.0f, 1.0f);
             float sinTaper    = (float) Math.sin(arcProgress * Math.PI);
             if (entity.getRandom().nextFloat() > sinTaper * 0.75f + 0.25f) continue;
 

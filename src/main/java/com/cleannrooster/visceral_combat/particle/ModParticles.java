@@ -12,7 +12,7 @@ public class ModParticles {
     public static final SimpleParticleType SLASH_GLINT = FabricParticleTypes.simple();
 
     public static void register() {
-        Registry.register(Registries.PARTICLE_TYPE, Identifier.of(VisceralCombat.MOD_ID, "slash_flash"), SLASH_FLASH);
+        Registry.register(Registries.PARTICLE_TYPE, new Identifier(VisceralCombat.MOD_ID, "slash_flash"), SLASH_FLASH);
         Registry.register(Registries.PARTICLE_TYPE, Identifier.of(VisceralCombat.MOD_ID, "slash_glint"), SLASH_GLINT);
     }
 }

@@ -3,11 +3,9 @@ package com.cleannrooster.visceral_combat.networking;
 import com.cleannrooster.visceral_combat.VisceralCombat;
 import com.cleannrooster.visceral_combat.api.HitstopAccessor;
 import com.cleannrooster.visceral_combat.config.ConfigSync;
-import com.cleannrooster.visceral_combat.config.ServerConfig;
 import com.cleannrooster.visceral_combat.particle.SlashParticleHandler;
 import com.cleannrooster.visceral_combat.util.EntityHelper;
 import com.cleannrooster.visceral_combat.util.TickScheduler;
-import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.entity.Entity;
 import net.minecraft.server.world.ServerWorld;
@@ -16,28 +14,24 @@ import net.minecraft.util.math.Vec3d;
 public class ServerNetworkHandler {
 
     public static void register() {
-        PayloadTypeRegistry.playS2C().register(ConfigSync.PACKET_ID, ConfigSync.CODEC);
-        PayloadTypeRegistry.playS2C().register(Packet.HolsterAssert.PACKET_ID, Packet.HolsterAssert.CODEC);
-        PayloadTypeRegistry.playC2S().register(Packet.Packets.PACKET_ID, Packet.Packets.CODEC);
-        PayloadTypeRegistry.playC2S().register(Packet.Impulse.PACKET_ID, Packet.Impulse.CODEC);
-        PayloadTypeRegistry.playC2S().register(Packet.Holster.PACKET_ID, Packet.Holster.CODEC);
-
-        ServerPlayNetworking.registerGlobalReceiver(Packet.Holster.PACKET_ID, (payload, context) -> {
-            if (context.player() instanceof HitstopAccessor hitstopAccessor) {
+        ServerPlayNetworking.registerGlobalReceiver(Packet.Holster.ID, (server, player, handler, buf, responseSender) -> {
+            Packet.Holster payload = Packet.Holster.read(buf);
+            if (player instanceof HitstopAccessor hitstopAccessor) {
                 hitstopAccessor.setHolster(payload.bool() || !hitstopAccessor.isHolster());
             }
         });
 
-        ServerPlayNetworking.registerGlobalReceiver(Packet.Impulse.PACKET_ID, (payload, context) -> {
-            Entity entity = context.player().getWorld().getEntityById(payload.id());
+        ServerPlayNetworking.registerGlobalReceiver(Packet.Impulse.ID, (server, player, handler, buf, responseSender) -> {
+            Packet.Impulse payload = Packet.Impulse.read(buf);
+            Entity entity = player.getWorld().getEntityById(payload.id());
             if (payload.shouldCheck()) {
-                var list = EntityHelper.getEntitiesInFront(context.player(), (float) context.player().getEntityInteractionRange() * 1.4F);
-                if (context.player() instanceof HitstopAccessor accessor) {
+                var list = EntityHelper.getEntitiesInFront(player, 4.5F * 1.4F);
+                if (player instanceof HitstopAccessor accessor) {
                     accessor.setShouldClamp(!list.isEmpty());
                 }
             }
             if (entity instanceof HitstopAccessor hitstopAccessor) {
-                boolean isEnemy = entity != context.player() && !payload.shouldCheck();
+                boolean isEnemy = entity != player && !payload.shouldCheck();
                 if (isEnemy) {
                     Vec3d dir = new Vec3d(payload.x(), payload.y(), payload.z());
                     double dirLen = Math.sqrt(dir.x * dir.x + dir.z * dir.z);
@@ -47,11 +41,11 @@ public class ServerNetworkHandler {
                             if (!(entity instanceof HitstopAccessor ha)) return;
                             Vec3d stored = ha.getVelocityHitstop();
                             if (stored != null && (stored.x != 0.0 || stored.z != 0.0)) {
-                                double horizMag = 0.4* VisceralCombat.config.dirCoeff* Math.sqrt(stored.x * stored.x + stored.z * stored.z);
+                                double horizMag = 0.4 * VisceralCombat.config.dirCoeff * Math.sqrt(stored.x * stored.x + stored.z * stored.z);
                                 ha.setVelocityHitstop(horizDir.multiply(horizMag).add(0, stored.y, 0));
                             } else {
                                 Vec3d vel = entity.getVelocity();
-                                double horizMag =  0.4* VisceralCombat.config.dirCoeff*Math.sqrt(vel.x * vel.x + vel.z * vel.z);
+                                double horizMag = 0.4 * VisceralCombat.config.dirCoeff * Math.sqrt(vel.x * vel.x + vel.z * vel.z);
                                 if (horizMag > 0.001) {
                                     entity.setVelocity(horizDir.multiply(horizMag).add(0, vel.y, 0));
                                     entity.velocityModified = true;
@@ -74,9 +68,10 @@ public class ServerNetworkHandler {
             }
         });
 
-        ServerPlayNetworking.registerGlobalReceiver(Packet.Packets.PACKET_ID, (payload, context) ->
-            SlashParticleHandler.spawnParticlesSlash(context.player(), context.player().getServerWorld(),
-                payload.yaw(), payload.pitch(), payload.range())
-        );
+        ServerPlayNetworking.registerGlobalReceiver(Packet.Packets.ID, (server, player, handler, buf, responseSender) -> {
+            Packet.Packets payload = Packet.Packets.read(buf);
+            SlashParticleHandler.spawnParticlesSlash(player, player.getServerWorld(),
+                payload.yaw(), payload.pitch(), payload.range());
+        });
     }
 }

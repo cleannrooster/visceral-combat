@@ -48,7 +48,7 @@ public class LivingEntityMixin implements HitstopAccessor {
     public void tickHitstop(CallbackInfo info) {
         LivingEntity living = (LivingEntity) (Object) this;
 
-        List<Entity> list  = EntityHelper.getEntitiesInFront(living, (living instanceof PlayerEntity player ? (float) player.getEntityInteractionRange() : 4F) * 0.6F);
+        List<Entity> list  = EntityHelper.getEntitiesInFront(living, (living instanceof PlayerEntity ? 4.5F : 4F) * 0.6F);
         List<Entity> list2 = EntityHelper.getEntitiesInFront(living, living.getWidth() + 0.5F);
 
         boolean trueBool = !list2.isEmpty() || !list.isEmpty();

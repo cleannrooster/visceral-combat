@@ -8,9 +8,11 @@ import net.bettercombat.api.client.BetterCombatClientEvents;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.attribute.EntityAttributes;
+import net.minecraft.network.PacketByteBuf;
 import net.minecraft.util.math.Vec3d;
 
 @Environment(EnvType.CLIENT)
@@ -20,17 +22,19 @@ public class CombatEventsClient {
         BetterCombatClientEvents.ATTACK_START.register((player, attackHand) -> {
             if (VisceralCombatClient.clientConfig != null && VisceralCombatClient.clientConfig.moveAttack) {
                 var cap = player.getMovementSpeed() * 2.0;
-                var movementInp = new Vec3d(player.input.getMovementInput().x, 0, player.input.getMovementInput().y);
+                var movementInp = new Vec3d(player.input.movementSideways, 0, player.input.movementForward);
                 var movement = movementInp.rotateY((float) -(player.getYaw() * Math.PI / 180));
                 var speed = 1.6F / player.getAttributeValue(EntityAttributes.GENERIC_ATTACK_SPEED);
-                var clamped = Math.clamp(speed, -cap / 2, cap);
+                var clamped = Math.max(-cap / 2, Math.min(cap, speed));
                 var lookDir = player.getRotationVec(1.0F);
                 var lookHoriz = new Vec3d(lookDir.x, 0, lookDir.z).normalize();
                 var backwardsCoeff = movement.dotProduct(lookHoriz) < 0
                     ? VisceralCombatClient.clientConfig.backwardsLungeCoeff : 1.0;
                 var vecMoveEnemy = movement.multiply(clamped * backwardsCoeff).multiply(4F, 0, 4F);
-                ClientPlayNetworking.send(new Packet.Impulse(player.getId(), 1F, 0.8F,
-                    (float) vecMoveEnemy.x, (float) vecMoveEnemy.y, (float) vecMoveEnemy.z, true));
+                PacketByteBuf buf = PacketByteBufs.create();
+                new Packet.Impulse(player.getId(), 1F, 0.8F,
+                    (float) vecMoveEnemy.x, (float) vecMoveEnemy.y, (float) vecMoveEnemy.z, true).write(buf);
+                ClientPlayNetworking.send(Packet.Impulse.ID, buf);
             }
 
             if (VisceralCombatClient.clientConfig != null && VisceralCombatClient.clientConfig.particles
@@ -41,9 +45,11 @@ public class CombatEventsClient {
                         : 240 + player.getRandom().nextBetween(0, 60)));
                 float pitch = attackHand.attack().hitbox().equals(WeaponAttributes.HitBoxShape.FORWARD_BOX) ? 0.25F : 1.0F;
                 float range = (float) (attackHand.attributes().attackRange() == 0.0
-                    ? player.getEntityInteractionRange()
+                    ? 4.5
                     : attackHand.attributes().attackRange() + attackHand.attributes().rangeBonus());
-                ClientPlayNetworking.send(new Packet.Packets(yaw, pitch, range));
+                PacketByteBuf buf = PacketByteBufs.create();
+                new Packet.Packets(yaw, pitch, range).write(buf);
+                ClientPlayNetworking.send(Packet.Packets.ID, buf);
             }
         });
 
@@ -63,9 +69,11 @@ public class CombatEventsClient {
                     vecMoveEnemy = vecMoveEnemy.multiply(1F - livingEntity.getAttributeValue(EntityAttributes.GENERIC_KNOCKBACK_RESISTANCE));
                 }
                 if (VisceralCombatClient.clientConfig.impactEnemy) {
-                    ClientPlayNetworking.send(new Packet.Impulse(entityMove.getId(), 1.1F,
+                    PacketByteBuf buf = PacketByteBufs.create();
+                    new Packet.Impulse(entityMove.getId(), 1.1F,
                         Math.min(1F, (float) (clientPlayerEntity.getAttributeValue(EntityAttributes.GENERIC_ATTACK_SPEED) / 4)),
-                        (float) vecMoveEnemy.x, (float) vecMoveEnemy.y, (float) vecMoveEnemy.z, false));
+                        (float) vecMoveEnemy.x, (float) vecMoveEnemy.y, (float) vecMoveEnemy.z, false).write(buf);
+                    ClientPlayNetworking.send(Packet.Impulse.ID, buf);
                 }
             }
 
@@ -73,9 +81,11 @@ public class CombatEventsClient {
                 var vecRecoil = ((HitstopAccessor) clientPlayerEntity).getVelocityHitstop() != null
                     ? ((HitstopAccessor) clientPlayerEntity).getVelocityHitstop()
                     : Vec3d.ZERO;
-                ClientPlayNetworking.send(new Packet.Impulse(clientPlayerEntity.getId(), 1F,
+                PacketByteBuf buf = PacketByteBufs.create();
+                new Packet.Impulse(clientPlayerEntity.getId(), 1F,
                     Math.min(1F, (float) (clientPlayerEntity.getAttributeValue(EntityAttributes.GENERIC_ATTACK_SPEED) / 4)),
-                    (float) vecRecoil.x, (float) vecRecoil.y, (float) vecRecoil.z, false));
+                    (float) vecRecoil.x, (float) vecRecoil.y, (float) vecRecoil.z, false).write(buf);
+                ClientPlayNetworking.send(Packet.Impulse.ID, buf);
                 clientPlayerEntity.velocityDirty = true;
             }
 
