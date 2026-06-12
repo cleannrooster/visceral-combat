@@ -1,0 +1,32 @@
+{
+	"schemaVersion": 1,
+	"id": "visceral_combat",
+	"version": "${version}",
+	"name": "Visceral Combat",
+	"description": "Makes combat feel more visceral and weighty.",
+	"authors": [
+		"cleannrooster"
+	],
+	"license": "CC0-1.0",
+	"icon": "assets/visceral_combat/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"com.cleannrooster.visceral_combat.fabric.VisceralCombatFabric"
+		],
+		"client": [
+			"com.cleannrooster.visceral_combat.fabric.VisceralCombatClientFabric"
+		]
+	},
+	"mixins": [
+		"visceral_combat.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=0.15.0",
+		"minecraft": "~1.20.1",
+		"java": ">=17",
+		"fabric-api": "*",
+		"architectury": ">=9",
+		"bettercombat": "*"
+	}
+}

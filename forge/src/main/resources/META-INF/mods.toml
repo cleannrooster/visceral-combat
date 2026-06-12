@@ -1,0 +1,37 @@
+modLoader = "javafml"
+loaderVersion = "[47,)"
+license = "CC0-1.0"
+
+[[dependencies.visceral_combat]]
+    modId = "forge"
+    mandatory = true
+    versionRange = "[47,)"
+    ordering = "NONE"
+    side = "BOTH"
+
+[[dependencies.visceral_combat]]
+    modId = "minecraft"
+    mandatory = true
+    versionRange = "[1.20.1,1.21)"
+    ordering = "NONE"
+    side = "BOTH"
+
+[[dependencies.visceral_combat]]
+    modId = "architectury"
+    mandatory = true
+    versionRange = "[9,)"
+    ordering = "NONE"
+    side = "BOTH"
+
+[[dependencies.visceral_combat]]
+    modId = "bettercombat"
+    mandatory = true
+    versionRange = "*"
+    ordering = "NONE"
+    side = "BOTH"
+
+[[mods]]
+modId = "visceral_combat"
+version = "${version}"
+displayName = "Visceral Combat"
+description = "Makes combat feel more visceral and weighty."
