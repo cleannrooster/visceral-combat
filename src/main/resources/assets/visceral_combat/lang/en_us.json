@@ -1,0 +1,5 @@
+{
+  "visceral_combat.binds.holster": "(Un)equip Hands",
+  "visceral_combat.binds.category": "Visceral Combat Binds",
+  "text.holster.error": "You are holstered. Default: "
+}
