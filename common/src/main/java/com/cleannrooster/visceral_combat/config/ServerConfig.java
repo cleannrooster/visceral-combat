@@ -31,7 +31,7 @@ public class ServerConfig implements ConfigData {
     @Comment("Hitstop on Enemies")
     public boolean hitstopEnemies = true;
     @Comment("Enable Holster Mode (H key)")
-    public boolean holster = true;
+    public boolean holster = false;
     @Comment("Holster Sprint Speed Boost multiplier")
     public float holsterBoost = 1.4000F;
 }
