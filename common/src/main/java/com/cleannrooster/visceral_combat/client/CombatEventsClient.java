@@ -2,6 +2,7 @@ package com.cleannrooster.visceral_combat.client;
 
 import com.cleannrooster.visceral_combat.VisceralCombatClient;
 import com.cleannrooster.visceral_combat.api.HitstopAccessor;
+import com.cleannrooster.visceral_combat.config.LungeMode;
 import com.cleannrooster.visceral_combat.networking.Packet;
 import dev.architectury.networking.NetworkManager;
 import io.netty.buffer.Unpooled;
@@ -22,18 +23,41 @@ public class CombatEventsClient {
         BetterCombatClientEvents.ATTACK_START.register((player, attackHand) -> {
             if (VisceralCombatClient.clientConfig != null && VisceralCombatClient.clientConfig.moveAttack) {
                 var cap = player.getMovementSpeed() * 2.0;
-                var movementInp = new Vec3d(player.input.movementSideways, 0, player.input.movementForward);
-                var movement = movementInp.rotateY((float) -(player.getYaw() * Math.PI / 180));
                 var speed = 1.6F / player.getAttributeValue(EntityAttributes.GENERIC_ATTACK_SPEED);
                 var clamped = Math.max(-cap / 2, Math.min(cap, speed));
                 var lookDir = player.getRotationVec(1.0F);
                 var lookHoriz = new Vec3d(lookDir.x, 0, lookDir.z).normalize();
-                var backwardsCoeff = movement.dotProduct(lookHoriz) < 0
-                    ? VisceralCombatClient.clientConfig.backwardsLungeCoeff : 1.0;
-                var vecMoveEnemy = movement.multiply(clamped * backwardsCoeff).multiply(4F, 0, 4F);
+                var mode = VisceralCombatClient.clientConfig.lungeMode;
+
+                Vec3d lungeDir;
+                boolean shouldBrake = true;
+
+                if (mode == LungeMode.DUELING) {
+                    // Always lunge straight forward regardless of input
+                    lungeDir = lookHoriz;
+                    shouldBrake = false;
+                } else if (mode == LungeMode.HYBRID) {
+                    // Forward lunge with a configurable left/right influence from input
+                    var movementInp = new Vec3d(player.input.movementSideways, 0, player.input.movementForward);
+                    var movement = movementInp.rotateY((float) -(player.getYaw() * Math.PI / 180));
+                    var forward = lookHoriz;
+                    var right = new Vec3d(-forward.z, 0, forward.x);
+                    var sideComponent = right.multiply(movement.dotProduct(right));
+                    var sideCoeff = VisceralCombatClient.clientConfig.hybridSideCoeff;
+                    lungeDir = forward.add(sideComponent.multiply(sideCoeff)).normalize();
+                } else {
+                    // ARCADE — lunge in movement input direction
+                    var movementInp = new Vec3d(player.input.movementSideways, 0, player.input.movementForward);
+                    var movement = movementInp.rotateY((float) -(player.getYaw() * Math.PI / 180));
+                    var backwardsCoeff = movement.dotProduct(lookHoriz) < 0
+                        ? VisceralCombatClient.clientConfig.backwardsLungeCoeff : 1.0;
+                    lungeDir = movement.multiply(backwardsCoeff);
+                }
+
+                var vecMoveEnemy = lungeDir.multiply(clamped).multiply(4F, 0, 4F);
                 PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
                 new Packet.Impulse(player.getId(), 1F, 0.8F,
-                    (float) vecMoveEnemy.x, (float) vecMoveEnemy.y, (float) vecMoveEnemy.z, true).write(buf);
+                    (float) vecMoveEnemy.x, (float) vecMoveEnemy.y, (float) vecMoveEnemy.z, shouldBrake).write(buf);
                 NetworkManager.sendToServer(Packet.Impulse.ID, buf);
             }
 

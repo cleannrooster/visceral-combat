@@ -8,7 +8,11 @@ import me.shedaniel.cloth.clothconfig.shadowed.blue.endless.jankson.Comment;
 public class ServerConfig implements ConfigData {
     @Comment("Forward Lunge on attack")
     public boolean moveAttack = true;
-    @Comment("Coefficient applied to lunge impulse when moving in a direction more than 90 degrees away from look direction (0 = no backwards lunge, 1 = full lunge)")
+    @Comment("Lunge mode: ARCADE (move in input direction), DUELING (always lunge forward), HYBRID (forward + configurable side influence)")
+    public LungeMode lungeMode = LungeMode.HYBRID;
+    @Comment("HYBRID mode only: how much left/right movement input is blended into the forward lunge (0 = pure forward, 1 = full sideways influence)")
+    public float hybridSideCoeff = 0.4F;
+    @Comment("ARCADE mode only: coefficient applied to lunge when moving more than 90 degrees away from look direction (0 = no backwards lunge, 1 = full)")
     public float backwardsLungeCoeff = 0.4F;
     @Comment("Forward Lunge decay coefficient")
     public float impulseCoeff = 0.2F;
