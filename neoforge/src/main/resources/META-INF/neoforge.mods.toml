@@ -1,0 +1,33 @@
+modLoader = "javafml"
+loaderVersion = "[4,)"
+license = "MIT"
+
+[[dependencies.visceral_combat]]
+    modId = "neoforge"
+    type = "required"
+    versionRange = "[21.1,)"
+    ordering = "NONE"
+    side = "BOTH"
+
+[[dependencies.visceral_combat]]
+    modId = "minecraft"
+    type = "required"
+    versionRange = "[1.21.1,)"
+    ordering = "NONE"
+    side = "BOTH"
+
+[[dependencies.visceral_combat]]
+    modId = "architectury"
+    type = "required"
+    versionRange = "*"
+    ordering = "AFTER"
+    side = "BOTH"
+
+[[mods]]
+    modId = "visceral_combat"
+    version = "${version}"
+    displayName = "Visceral Combat"
+    description = "Visceral combat feel for Minecraft"
+
+[[mixins]]
+    config = "visceral_combat.mixins.json"
