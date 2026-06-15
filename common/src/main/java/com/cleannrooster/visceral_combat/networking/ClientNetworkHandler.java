@@ -7,6 +7,7 @@ import com.cleannrooster.visceral_combat.config.ConfigSync;
 import dev.architectury.networking.NetworkManager;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.minecraft.network.PacketByteBuf;
 
 @Environment(EnvType.CLIENT)
 public class ClientNetworkHandler {
@@ -27,6 +28,11 @@ public class ClientNetworkHandler {
                     accessor.setHolster(payload.bool());
                 }
             });
+        });
+
+        NetworkManager.registerReceiver(NetworkManager.Side.S2C, Packet.LungeAck.ID, (buf, context) -> {
+            Packet.LungeAck.read(buf);
+            context.queue(() -> VisceralCombatClient.lungePending = false);
         });
     }
 }

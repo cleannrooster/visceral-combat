@@ -6,7 +6,9 @@ import com.cleannrooster.visceral_combat.particle.SlashParticleHandler;
 import com.cleannrooster.visceral_combat.util.EntityHelper;
 import com.cleannrooster.visceral_combat.util.TickScheduler;
 import dev.architectury.networking.NetworkManager;
+import io.netty.buffer.Unpooled;
 import net.minecraft.entity.Entity;
+import net.minecraft.network.PacketByteBuf;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.Vec3d;
@@ -33,7 +35,11 @@ public class ServerNetworkHandler {
                     if (player instanceof HitstopAccessor accessor) {
                         accessor.setShouldClamp(!list.isEmpty());
                     }
+                    PacketByteBuf ackBuf = new PacketByteBuf(Unpooled.buffer());
+                    new Packet.LungeAck().write(ackBuf);
+                    NetworkManager.sendToPlayer(player, Packet.LungeAck.ID, ackBuf);
                 }
+                else
                 if (entity instanceof HitstopAccessor hitstopAccessor) {
                     boolean isEnemy = entity != player && !payload.shouldCheck();
                     if (isEnemy) {

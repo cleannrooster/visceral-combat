@@ -21,7 +21,8 @@ public class CombatEventsClient {
 
     public static void register() {
         BetterCombatClientEvents.ATTACK_START.register((player, attackHand) -> {
-            if (VisceralCombatClient.clientConfig != null && VisceralCombatClient.clientConfig.moveAttack) {
+            if (VisceralCombatClient.clientConfig != null && VisceralCombatClient.clientConfig.moveAttack
+                    && !VisceralCombatClient.lungePending) {
                 var cap = player.getMovementSpeed() * 2.0;
                 var speed = 1.6F / player.getAttributeValue(EntityAttributes.GENERIC_ATTACK_SPEED);
                 var clamped = Math.max(-cap / 2, Math.min(cap, speed));
@@ -33,11 +34,9 @@ public class CombatEventsClient {
                 boolean shouldBrake = true;
 
                 if (mode == LungeMode.DUELING) {
-                    // Always lunge straight forward regardless of input
                     lungeDir = lookHoriz;
                     shouldBrake = false;
                 } else if (mode == LungeMode.HYBRID) {
-                    // Forward lunge with a configurable left/right influence from input
                     var movementInp = new Vec3d(player.input.movementSideways, 0, player.input.movementForward);
                     var movement = movementInp.rotateY((float) -(player.getYaw() * Math.PI / 180));
                     var forward = lookHoriz;
@@ -46,7 +45,6 @@ public class CombatEventsClient {
                     var sideCoeff = VisceralCombatClient.clientConfig.hybridSideCoeff;
                     lungeDir = forward.add(sideComponent.multiply(sideCoeff)).normalize();
                 } else {
-                    // ARCADE — lunge in movement input direction
                     var movementInp = new Vec3d(player.input.movementSideways, 0, player.input.movementForward);
                     var movement = movementInp.rotateY((float) -(player.getYaw() * Math.PI / 180));
                     var backwardsCoeff = movement.dotProduct(lookHoriz) < 0
@@ -55,6 +53,13 @@ public class CombatEventsClient {
                 }
 
                 var vecMoveEnemy = lungeDir.multiply(clamped).multiply(4F, 0, 4F);
+
+                // Predict locally for instant feel; server will ACK and own the authoritative result
+                player.addVelocity(vecMoveEnemy.x, 0, vecMoveEnemy.z);
+                player.velocityDirty = true;
+                VisceralCombatClient.lungePending = true;
+                VisceralCombatClient.lungeExpiry = player.getWorld().getTime() + 40L;
+
                 PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
                 new Packet.Impulse(player.getId(), 1F, 0.8F,
                     (float) vecMoveEnemy.x, (float) vecMoveEnemy.y, (float) vecMoveEnemy.z, shouldBrake).write(buf);

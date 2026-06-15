@@ -45,4 +45,10 @@ public class Packet {
                 buf.readFloat(), buf.readFloat(), buf.readFloat(), buf.readBoolean());
         }
     }
+
+    public record LungeAck() {
+        public static final Identifier ID = new Identifier("visceral_combat", "lunge_ack");
+        public void write(PacketByteBuf buf) {}
+        public static LungeAck read(PacketByteBuf buf) { return new LungeAck(); }
+    }
 }
