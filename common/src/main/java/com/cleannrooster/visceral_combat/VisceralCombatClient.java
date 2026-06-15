@@ -16,9 +16,14 @@ import net.minecraft.text.Text;
 public class VisceralCombatClient {
     public static ServerConfig clientConfig;
     public static KeyBinding holsterBinding;
+    public static boolean lungePending = false;
+    public static long lungeExpiry = 0L;
 
     public static void clientInit() {
         ClientTickEvent.CLIENT_POST.register(client -> {
+            if (lungePending && client.world != null && client.world.getTime() > lungeExpiry) {
+                lungePending = false;
+            }
             if (holsterBinding != null && holsterBinding.wasPressed()
                     && client.player instanceof HitstopAccessor accessor) {
                 accessor.setHolster(!accessor.isHolster());

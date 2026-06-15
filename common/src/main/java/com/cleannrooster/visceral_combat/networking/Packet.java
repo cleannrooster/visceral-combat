@@ -55,4 +55,14 @@ public class Packet {
         @Override
         public CustomPayload.Id<? extends CustomPayload> getId() { return PACKET_ID; }
     }
+
+    public record LungeAck() implements CustomPayload {
+        public static final Identifier ID = Identifier.of("visceral_combat", "lunge_ack");
+        public static final CustomPayload.Id<LungeAck> PACKET_ID = new CustomPayload.Id<>(ID);
+        public static final PacketCodec<PacketByteBuf, LungeAck> CODEC =
+            PacketCodec.of((val, buf) -> {}, buf -> new LungeAck());
+
+        @Override
+        public CustomPayload.Id<? extends CustomPayload> getId() { return PACKET_ID; }
+    }
 }

@@ -21,6 +21,7 @@ public class ServerNetworkHandler {
 
             NetworkManager.registerS2CPayloadType(ConfigSync.PACKET_ID, ConfigSync.CODEC);
             NetworkManager.registerS2CPayloadType(Packet.HolsterAssert.PACKET_ID, Packet.HolsterAssert.CODEC);
+            NetworkManager.registerS2CPayloadType(Packet.LungeAck.PACKET_ID, Packet.LungeAck.CODEC);
 
         }
         NetworkManager.registerReceiver(NetworkManager.Side.C2S, Packet.Holster.PACKET_ID, Packet.Holster.CODEC,
@@ -40,7 +41,9 @@ public class ServerNetworkHandler {
                     if (context.getPlayer() instanceof HitstopAccessor accessor) {
                         accessor.setShouldClamp(!list.isEmpty());
                     }
+                    NetworkManager.sendToPlayer((ServerPlayerEntity) context.getPlayer(), new Packet.LungeAck());
                 }
+                else
                 if (entity instanceof HitstopAccessor hitstopAccessor) {
                     boolean isEnemy = entity != context.getPlayer() && !payload.shouldCheck();
                     if (isEnemy) {

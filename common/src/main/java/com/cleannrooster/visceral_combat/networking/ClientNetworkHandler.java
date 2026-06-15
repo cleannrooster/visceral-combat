@@ -26,5 +26,9 @@ public class ClientNetworkHandler {
                 }
             })
         );
+
+        NetworkManager.registerReceiver(NetworkManager.Side.S2C, Packet.LungeAck.PACKET_ID, Packet.LungeAck.CODEC,
+            (payload, context) -> context.queue(() -> VisceralCombatClient.lungePending = false)
+        );
     }
 }
