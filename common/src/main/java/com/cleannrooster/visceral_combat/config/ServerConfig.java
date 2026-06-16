@@ -4,7 +4,7 @@ import me.shedaniel.autoconfig.ConfigData;
 import me.shedaniel.autoconfig.annotation.Config;
 import me.shedaniel.cloth.clothconfig.shadowed.blue.endless.jankson.Comment;
 
-@Config(name = "server_v1")
+@Config(name = "server_v2")
 public class ServerConfig implements ConfigData {
     @Comment("Forward Lunge on attack")
     public boolean moveAttack = true;
@@ -14,9 +14,13 @@ public class ServerConfig implements ConfigData {
     public float hybridSideCoeff = 0.4F;
     @Comment("ARCADE mode only: coefficient applied to lunge when moving more than 90 degrees away from look direction (0 = no backwards lunge, 1 = full)")
     public float backwardsLungeCoeff = 0.4F;
-    @Comment("Forward Lunge decay coefficient")
+    @Comment("Forward Lunge speed coeff")
+    public float lungeSpeed = 2.4F;
+    @Comment("Forward Lunge speed cap")
+    public float lungeSpeedCap = 4F;
+    @Comment("Impulse decay coefficient")
     public float impulseCoeff = 0.2F;
-    @Comment("Forward Lunge max speed coefficient")
+    @Comment("Impulse speed coefficient")
     public float maxImpulse = 1.2F;
     @Comment("Impact recoil on attacker when hitting enemy")
     public boolean impactRecoil = true;

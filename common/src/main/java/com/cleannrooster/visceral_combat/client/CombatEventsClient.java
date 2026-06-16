@@ -50,16 +50,35 @@ public class CombatEventsClient {
                     lungeDir = movement.multiply(backwardsCoeff);
                 }
 
-                var vecMoveEnemy = lungeDir.multiply(clamped).multiply(4F, 0, 4F);
+                var lungeSpeed = VisceralCombatClient.clientConfig.lungeSpeed;
+                var vecMoveEnemy = lungeDir.multiply(clamped).multiply(lungeSpeed, 0, lungeSpeed);
 
-                // Predict locally for instant feel; server will ACK and own the authoritative result
-                player.addVelocity(vecMoveEnemy.x, 0, vecMoveEnemy.z);
-                player.velocityDirty = true;
-                VisceralCombatClient.lungePending = true;
-                VisceralCombatClient.lungeExpiry = player.getWorld().getTime() + 40L;
+                var currentVel = player.getVelocity();
+                var horizSpeedSq = currentVel.x * currentVel.x + currentVel.z * currentVel.z;
+                var lungeSpeedCap = player.getAttributeValue(EntityAttributes.GENERIC_MOVEMENT_SPEED) * 1.4 * VisceralCombatClient.clientConfig.lungeSpeedCap;
+                var lungeSpeedCapSq = lungeSpeedCap * lungeSpeedCap;
 
-                NetworkManager.sendToServer(new Packet.Impulse(player.getId(), 1F, 0.8F,
-                    (float) vecMoveEnemy.x, (float) vecMoveEnemy.y, (float) vecMoveEnemy.z, shouldBrake));
+                if (horizSpeedSq < lungeSpeedCapSq) {
+                    var addX = vecMoveEnemy.x;
+                    var addZ = vecMoveEnemy.z;
+                    var newX = currentVel.x + addX;
+                    var newZ = currentVel.z + addZ;
+                    var newHorizSpeedSq = newX * newX + newZ * newZ;
+                    if (newHorizSpeedSq > lungeSpeedCapSq) {
+                        var scale = lungeSpeedCap / Math.sqrt(newHorizSpeedSq);
+                        addX = newX * scale - currentVel.x;
+                        addZ = newZ * scale - currentVel.z;
+                    }
+
+                    // Predict locally for instant feel; server will ACK and own the authoritative result
+                    player.addVelocity(addX, 0, addZ);
+                    player.velocityDirty = true;
+                    VisceralCombatClient.lungePending = true;
+                    VisceralCombatClient.lungeExpiry = player.getWorld().getTime() + 40L;
+
+                    NetworkManager.sendToServer(new Packet.Impulse(player.getId(), 1F, 0.8F,
+                        (float) vecMoveEnemy.x, (float) vecMoveEnemy.y, (float) vecMoveEnemy.z, shouldBrake));
+                }
             }
 
             if (VisceralCombatClient.clientConfig != null && VisceralCombatClient.clientConfig.particles
