@@ -16,6 +16,8 @@ public class ServerConfig implements ConfigData {
     public float backwardsLungeCoeff = 0.4F;
     @Comment("Forward Lunge speed coeff")
     public float lungeSpeed = 2.4F;
+    @Comment("Forward Lunge speed cap")
+    public float lungeSpeedCap = 4F;
     @Comment("Impulse decay coefficient")
     public float impulseCoeff = 0.2F;
     @Comment("Impulse speed coefficient")
