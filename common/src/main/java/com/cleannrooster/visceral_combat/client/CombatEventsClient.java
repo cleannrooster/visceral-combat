@@ -1,5 +1,6 @@
 package com.cleannrooster.visceral_combat.client;
 
+import com.cleannrooster.visceral_combat.VisceralCombat;
 import com.cleannrooster.visceral_combat.VisceralCombatClient;
 import com.cleannrooster.visceral_combat.api.HitstopAccessor;
 import com.cleannrooster.visceral_combat.config.LungeMode;
@@ -52,18 +53,36 @@ public class CombatEventsClient {
                     lungeDir = movement.multiply(backwardsCoeff);
                 }
 
-                var vecMoveEnemy = lungeDir.multiply(clamped).multiply(4F, 0, 4F);
+                var vecMoveEnemy = lungeDir.multiply(clamped).multiply(VisceralCombat.config.lungeSpeed, 0, VisceralCombat.config.lungeSpeed);
 
-                // Predict locally for instant feel; server will ACK and own the authoritative result
-                player.addVelocity(vecMoveEnemy.x, 0, vecMoveEnemy.z);
-                player.velocityDirty = true;
-                VisceralCombatClient.lungePending = true;
-                VisceralCombatClient.lungeExpiry = player.getWorld().getTime() + 40L;
+                var currentVel = player.getVelocity();
+                var horizSpeedSq = currentVel.x * currentVel.x + currentVel.z * currentVel.z;
+                var lungeSpeedCap = player.getMovementSpeed() * 4.0;
+                var lungeSpeedCapSq = lungeSpeedCap * lungeSpeedCap;
 
-                PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
-                new Packet.Impulse(player.getId(), 1F, 0.8F,
-                    (float) vecMoveEnemy.x, (float) vecMoveEnemy.y, (float) vecMoveEnemy.z, shouldBrake).write(buf);
-                NetworkManager.sendToServer(Packet.Impulse.ID, buf);
+                if (horizSpeedSq < lungeSpeedCapSq) {
+                    var addX = vecMoveEnemy.x;
+                    var addZ = vecMoveEnemy.z;
+                    var newX = currentVel.x + addX;
+                    var newZ = currentVel.z + addZ;
+                    var newHorizSpeedSq = newX * newX + newZ * newZ;
+                    if (newHorizSpeedSq > lungeSpeedCapSq) {
+                        var scale = lungeSpeedCap / Math.sqrt(newHorizSpeedSq);
+                        addX = newX * scale - currentVel.x;
+                        addZ = newZ * scale - currentVel.z;
+                    }
+
+                    // Predict locally for instant feel; server will ACK and own the authoritative result
+                    player.addVelocity(addX, 0, addZ);
+                    player.velocityDirty = true;
+                    VisceralCombatClient.lungePending = true;
+                    VisceralCombatClient.lungeExpiry = player.getWorld().getTime() + 40L;
+
+                    PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
+                    new Packet.Impulse(player.getId(), 1F, 0.8F,
+                        (float) vecMoveEnemy.x, (float) vecMoveEnemy.y, (float) vecMoveEnemy.z, true).write(buf);
+                    NetworkManager.sendToServer(Packet.Impulse.ID, buf);
+                }
             }
 
             if (VisceralCombatClient.clientConfig != null && VisceralCombatClient.clientConfig.particles
