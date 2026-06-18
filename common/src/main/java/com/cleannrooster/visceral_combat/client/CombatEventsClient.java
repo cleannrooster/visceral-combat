@@ -57,7 +57,7 @@ public class CombatEventsClient {
 
                 var currentVel = player.getVelocity();
                 var horizSpeedSq = currentVel.x * currentVel.x + currentVel.z * currentVel.z;
-                var lungeSpeedCap = player.getAttributeValue(EntityAttributes.GENERIC_MOVEMENT_SPEED)*1.4 * VisceralCombat.clientConfig.lungeSpeed;
+                var lungeSpeedCap = player.getAttributeValue(EntityAttributes.GENERIC_MOVEMENT_SPEED)*1.4 * VisceralCombat.clientConfig.lungeSpeedCap;
                 var lungeSpeedCapSq = lungeSpeedCap * lungeSpeedCap;
 
                 if (horizSpeedSq < lungeSpeedCapSq) {
