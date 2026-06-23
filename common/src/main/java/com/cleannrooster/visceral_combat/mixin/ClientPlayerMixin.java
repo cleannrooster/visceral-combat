@@ -87,6 +87,10 @@ public class ClientPlayerMixin implements HitstopAccessor {
     @Override public void setImpulseVector(Vec3d vec3d) { impulseVector = vec3d; }
     @Override public Vec3d getImpulseVector() { return impulseVector; }
 
+    public Vec3d impulseDir = null;
+    @Override public void setImpulseDir(Vec3d vec3d) { impulseDir = vec3d; }
+    @Override public Vec3d getImpulseDir() { return impulseDir; }
+
     @Override public void setLastAttackedTemporary(long time) { this.lastAttackedTemporary = time; }
 
     protected long lastHitstopAppliedTime = 0;

@@ -1,6 +1,7 @@
 package com.cleannrooster.visceral_combat;
 
 import com.cleannrooster.visceral_combat.api.HitstopAccessor;
+import com.cleannrooster.visceral_combat.config.ConfigSync;
 import com.cleannrooster.visceral_combat.networking.Packet;
 import dev.architectury.event.events.common.LifecycleEvent;
 import dev.architectury.event.events.common.TickEvent;
@@ -19,6 +20,7 @@ public class ServerEventHandlers {
                 for (ServerPlayerEntity player : world.getPlayers()) {
                     if (player.age % 100 == 0 && player instanceof HitstopAccessor accessor) {
                         NetworkManager.sendToPlayer(player, new Packet.HolsterAssert(accessor.isHolster()));
+                        NetworkManager.sendToPlayer(player, new ConfigSync(VisceralCombat.config));
                     }
                 }
             }
