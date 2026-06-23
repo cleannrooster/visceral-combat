@@ -1,6 +1,5 @@
 package com.cleannrooster.visceral_combat.client;
 
-import com.cleannrooster.visceral_combat.VisceralCombat;
 import com.cleannrooster.visceral_combat.VisceralCombatClient;
 import com.cleannrooster.visceral_combat.api.HitstopAccessor;
 import com.cleannrooster.visceral_combat.config.LungeMode;
@@ -20,14 +19,16 @@ public class CombatEventsClient {
 
     public static void register() {
         BetterCombatClientEvents.ATTACK_START.register((player, attackHand) -> {
-            if (VisceralCombat.config != null && VisceralCombat.config.moveAttack
+            var config = VisceralCombatClient.clientConfig;
+            if (config == null) return; // not synced from the server yet: do nothing
+            if (config.moveAttack
                     && !VisceralCombatClient.lungePending) {
                 var cap = player.getMovementSpeed() * 2.0;
                 var speed = 1.6F / player.getAttributeValue(EntityAttributes.GENERIC_ATTACK_SPEED);
                 var clamped = Math.clamp(speed, -cap / 2, cap);
                 var lookDir = player.getRotationVec(1.0F);
                 var lookHoriz = new Vec3d(lookDir.x, 0, lookDir.z).normalize();
-                var mode = VisceralCombat.config.lungeMode;
+                var mode = config.lungeMode;
 
                 Vec3d lungeDir;
                 boolean shouldBrake = true;
@@ -41,22 +42,22 @@ public class CombatEventsClient {
                     var forward = lookHoriz;
                     var right = new Vec3d(-forward.z, 0, forward.x);
                     var sideComponent = right.multiply(movement.dotProduct(right));
-                    var sideCoeff = VisceralCombat.config.hybridSideCoeff;
+                    var sideCoeff = config.hybridSideCoeff;
                     lungeDir = forward.add(sideComponent.multiply(sideCoeff)).normalize();
                 } else {
                     var movementInp = new Vec3d(player.input.getMovementInput().x, 0, player.input.getMovementInput().y);
                     var movement = movementInp.rotateY((float) -(player.getYaw() * Math.PI / 180));
                     var backwardsCoeff = movement.dotProduct(lookHoriz) < 0
-                        ? VisceralCombat.config.backwardsLungeCoeff : 1.0;
+                        ? config.backwardsLungeCoeff : 1.0;
                     lungeDir = movement.multiply(backwardsCoeff);
                 }
 
-                var lungeSpeed = VisceralCombat.config.lungeSpeed;
+                var lungeSpeed = config.lungeSpeed;
                 var vecMoveEnemy = lungeDir.multiply(clamped).multiply(lungeSpeed, 0, lungeSpeed);
 
                 var currentVel = player.getVelocity();
                 var horizSpeedSq = currentVel.x * currentVel.x + currentVel.z * currentVel.z;
-                var lungeSpeedCap = player.getAttributeValue(EntityAttributes.GENERIC_MOVEMENT_SPEED) * 1.4 * VisceralCombat.config.lungeSpeedCap;
+                var lungeSpeedCap = player.getAttributeValue(EntityAttributes.GENERIC_MOVEMENT_SPEED) * 1.4 * config.lungeSpeedCap;
                 var lungeSpeedCapSq = lungeSpeedCap * lungeSpeedCap;
 
                 if (horizSpeedSq < lungeSpeedCapSq) {
@@ -82,7 +83,7 @@ public class CombatEventsClient {
                 }
             }
 
-            if (VisceralCombat.config != null && VisceralCombat.config.particles
+            if (config.particles
                     && attackHand.attack() != null) {
                 float yaw = (float) (!attackHand.attack().hitbox().equals(WeaponAttributes.HitBoxShape.HORIZONTAL_PLANE) ? 0
                     : (!attackHand.isOffHand() && (!attackHand.attack().animation().contains("left") || attackHand.attack().animation().contains("right"))
@@ -97,6 +98,8 @@ public class CombatEventsClient {
         });
 
         BetterCombatClientEvents.ATTACK_HIT.register((clientPlayerEntity, attackHand, list, entity) -> {
+            var config = VisceralCombatClient.clientConfig;
+            if (config == null) return; // not synced from the server yet: do nothing
             Vec3d vecMove = clientPlayerEntity.getRotationVec(1.0F)
                 .crossProduct(new Vec3d(0,
                     !attackHand.attack().hitbox().equals(WeaponAttributes.HitBoxShape.HORIZONTAL_PLANE) ? 0
@@ -111,14 +114,14 @@ public class CombatEventsClient {
                 if (entityMove instanceof LivingEntity livingEntity) {
                     vecMoveEnemy = vecMoveEnemy.multiply(1F - livingEntity.getAttributeValue(EntityAttributes.GENERIC_KNOCKBACK_RESISTANCE));
                 }
-                if (VisceralCombat.config.impactEnemy) {
+                if (config.impactEnemy) {
                     NetworkManager.sendToServer(new Packet.Impulse(entityMove.getId(), 1.1F,
                         Math.min(1F, (float) (clientPlayerEntity.getAttributeValue(EntityAttributes.GENERIC_ATTACK_SPEED) / 4)),
                         (float) vecMoveEnemy.x, (float) vecMoveEnemy.y, (float) vecMoveEnemy.z, false));
                 }
             }
 
-            if (VisceralCombat.config.impactRecoil && !list.isEmpty()) {
+            if (config.impactRecoil && !list.isEmpty()) {
                 var vecRecoil = ((HitstopAccessor) clientPlayerEntity).getVelocityHitstop() != null
                     ? ((HitstopAccessor) clientPlayerEntity).getVelocityHitstop()
                     : Vec3d.ZERO;
@@ -129,7 +132,7 @@ public class CombatEventsClient {
             }
 
             LivingEntity living = (LivingEntity) (Object) clientPlayerEntity;
-            if (VisceralCombat.config.hitstopSelf
+            if (config.hitstopSelf
                     && living instanceof HitstopAccessor hitstopAccessor && !list.isEmpty()) {
                 hitstopAccessor.setHitstop((int) Math.ceil(2 * (1.6F / living.getAttributeValue(EntityAttributes.GENERIC_ATTACK_SPEED))));
                 hitstopAccessor.setHitstopTime((int) living.getWorld().getTime());

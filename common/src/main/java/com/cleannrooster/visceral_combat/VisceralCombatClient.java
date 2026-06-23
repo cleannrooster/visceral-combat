@@ -21,6 +21,11 @@ public class VisceralCombatClient {
 
     public static void clientInit() {
         ClientTickEvent.CLIENT_POST.register(client -> {
+            // No world means disconnected / main menu: forget the previous server's config so it can
+            // never bleed into a later session. The server re-syncs it on join (see VisceralCombat).
+            if (client.world == null) {
+                clientConfig = null;
+            }
             if (lungePending && client.world != null && client.world.getTime() > lungeExpiry) {
                 lungePending = false;
             }

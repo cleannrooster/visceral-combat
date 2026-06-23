@@ -22,7 +22,6 @@ public class VisceralCombat {
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
     public static ServerConfig config;
-    public static ServerConfig clientConfig;
 
     public static void init() {
         AutoConfig.register(ServerConfigWrapper.class, PartitioningSerializer.wrap(JanksonConfigSerializer::new));
