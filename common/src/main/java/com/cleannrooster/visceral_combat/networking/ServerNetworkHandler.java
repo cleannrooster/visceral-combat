@@ -1,16 +1,13 @@
 package com.cleannrooster.visceral_combat.networking;
 
-import com.cleannrooster.visceral_combat.VisceralCombat;
 import com.cleannrooster.visceral_combat.api.HitstopAccessor;
 import com.cleannrooster.visceral_combat.particle.SlashParticleHandler;
 import com.cleannrooster.visceral_combat.util.EntityHelper;
-import com.cleannrooster.visceral_combat.util.TickScheduler;
 import dev.architectury.networking.NetworkManager;
 import io.netty.buffer.Unpooled;
 import net.minecraft.entity.Entity;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.Vec3d;
 
 public class ServerNetworkHandler {
@@ -45,26 +42,12 @@ public class ServerNetworkHandler {
                     if (isEnemy) {
                         Vec3d dir = new Vec3d(payload.x(), payload.y(), payload.z());
                         double dirLen = Math.sqrt(dir.x * dir.x + dir.z * dir.z);
-                        if (dirLen > 0.001 && entity.getWorld() instanceof ServerWorld sWorld) {
-                            final Vec3d horizDir = new Vec3d(dir.x / dirLen, 0, dir.z / dirLen);
-                            TickScheduler.schedule(sWorld, 1, () -> {
-                                if (!(entity instanceof HitstopAccessor ha)) return;
-                                Vec3d stored = ha.getVelocityHitstop();
-                                if (stored != null && (stored.x != 0.0 || stored.z != 0.0)) {
-                                    double horizMag = 0.4 * VisceralCombat.config.dirCoeff
-                                        * Math.sqrt(stored.x * stored.x + stored.z * stored.z);
-                                    ha.setVelocityHitstop(horizDir.multiply(horizMag).add(0, stored.y, 0));
-                                } else {
-                                    Vec3d vel = entity.getVelocity();
-                                    double horizMag = 0.4 * VisceralCombat.config.dirCoeff
-                                        * Math.sqrt(vel.x * vel.x + vel.z * vel.z);
-                                    if (horizMag > 0.001) {
-                                        entity.setVelocity(horizDir.multiply(horizMag).add(0, vel.y, 0));
-                                        entity.velocityModified = true;
-                                        entity.velocityDirty = true;
-                                    }
-                                }
-                            });
+                        if (dirLen > 0.001) {
+                            // Stamp the swing-sweep direction. The redirect (and its dirCoeff factor)
+                            // is applied exactly once when the freeze releases, against the compounded
+                            // knockback magnitude — no scheduled read-modify-overwrite of the
+                            // accumulator, so compounding is order-independent and can't re-inflate.
+                            hitstopAccessor.setImpulseDir(new Vec3d(dir.x / dirLen, 0, dir.z / dirLen));
                         }
                     } else {
                         hitstopAccessor.setImpulseVector(

@@ -14,12 +14,13 @@ import me.shedaniel.autoconfig.serializer.PartitioningSerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ObjectInputFilter;
+
 public class VisceralCombat {
     public static final String MOD_ID = "visceral_combat";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
     public static ServerConfig config;
-    public static ServerConfig clientConfig;
 
     public static void init() {
         AutoConfig.register(ServerConfigWrapper.class, PartitioningSerializer.wrap(JanksonConfigSerializer::new));
