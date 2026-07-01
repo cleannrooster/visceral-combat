@@ -30,5 +30,11 @@ public class ClientNetworkHandler {
         NetworkManager.registerReceiver(NetworkManager.Side.S2C, Packet.LungeAck.PACKET_ID, Packet.LungeAck.CODEC,
             (payload, context) -> context.queue(() -> VisceralCombatClient.lungePending = false)
         );
+
+        NetworkManager.registerReceiver(NetworkManager.Side.S2C, Packet.ChargeSync.PACKET_ID, Packet.ChargeSync.CODEC,
+            (payload, context) -> context.queue(() ->
+                // Snap the predicted HUD state to the server's authoritative ledger.
+                VisceralCombatClient.charges.setState(payload.startTick(), payload.readyTick()))
+        );
     }
 }

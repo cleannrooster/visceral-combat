@@ -21,11 +21,21 @@ public class CombatEventsClient {
         BetterCombatClientEvents.ATTACK_START.register((player, attackHand) -> {
             var config = VisceralCombatClient.clientConfig;
             if (config == null) return; // not synced from the server yet: do nothing
+            var now = player.getWorld().getTime();
             if (config.moveAttack
-                    && !VisceralCombatClient.lungePending) {
-                var cap = player.getMovementSpeed() * 2.0;
-                var speed = 1.6F / player.getAttributeValue(EntityAttributes.GENERIC_ATTACK_SPEED);
-                var clamped = Math.clamp(speed, -cap / 2, cap);
+                    && !VisceralCombatClient.lungePending
+                    && VisceralCombatClient.hasCharge(now)) {
+                var attackSpeed = Math.clamp(player.getAttributeValue(EntityAttributes.GENERIC_ATTACK_SPEED),
+                    config.minAttackSpeed, config.maxAttackSpeed);
+                // Lunge magnitude vs. attack speed: a bump that peaks at PEAK_ATTACK_SPEED and falls off
+                // for weapons both faster and slower, so ~0.8-attack-speed weapons lunge hardest.
+                // ATTACK_SPEED_INFLUENCE is how much of the magnitude attack speed drives (0 = flat,
+                // 1 = fully): it was effectively 0.5 before, now 1.0 -> attack speed is twice as effective.
+                final double PEAK_ATTACK_SPEED = 0.8;
+                final double ATTACK_SPEED_INFLUENCE = 1.0;
+                var ratio = attackSpeed / PEAK_ATTACK_SPEED;
+                var bump = 2.0 * ratio / (ratio * ratio + 1.0); // 1.0 at the peak, less away from it
+                var speed = 1.0 - ATTACK_SPEED_INFLUENCE * (1.0 - bump);
                 var lookDir = player.getRotationVec(1.0F);
                 var lookHoriz = new Vec3d(lookDir.x, 0, lookDir.z).normalize();
                 var mode = config.lungeMode;
@@ -52,31 +62,31 @@ public class CombatEventsClient {
                     lungeDir = movement.multiply(backwardsCoeff);
                 }
 
-                var lungeSpeed = config.lungeSpeed;
-                var vecMoveEnemy = lungeDir.multiply(clamped).multiply(lungeSpeed, 0, lungeSpeed);
+                // Halved code-side so existing configs keep their original lungeSpeed scale.
+                var lungeSpeed = config.lungeSpeed * 0.5;
+                var vecMoveEnemy = lungeDir.multiply(speed).multiply(lungeSpeed, 0, lungeSpeed);
 
                 var currentVel = player.getVelocity();
                 var horizSpeedSq = currentVel.x * currentVel.x + currentVel.z * currentVel.z;
-                var lungeSpeedCap = player.getAttributeValue(EntityAttributes.GENERIC_MOVEMENT_SPEED) * 1.4 * config.lungeSpeedCap;
+                // Doubled code-side so existing configs keep their original lungeSpeedCap scale.
+                var lungeSpeedCap = player.getAttributeValue(EntityAttributes.GENERIC_MOVEMENT_SPEED) * 1.4 * config.lungeSpeedCap * 2.0;
                 var lungeSpeedCapSq = lungeSpeedCap * lungeSpeedCap;
 
                 if (horizSpeedSq < lungeSpeedCapSq) {
-                    var addX = vecMoveEnemy.x;
-                    var addZ = vecMoveEnemy.z;
-                    var newX = currentVel.x + addX;
-                    var newZ = currentVel.z + addZ;
-                    var newHorizSpeedSq = newX * newX + newZ * newZ;
-                    if (newHorizSpeedSq > lungeSpeedCapSq) {
-                        var scale = lungeSpeedCap / Math.sqrt(newHorizSpeedSq);
-                        addX = newX * scale - currentVel.x;
-                        addZ = newZ * scale - currentVel.z;
+                    // Instant client-side prediction (all modes); server will ACK and gate the charge.
+                    VisceralCombatClient.applyLungeVelocity(player, config, vecMoveEnemy.x, vecMoveEnemy.z);
+                    if (mode == LungeMode.DUELING) {
+                        // DUELING adds a short decaying tail applied client-side over the next few ticks
+                        // (see VisceralCombatClient CLIENT_PRE) for its smooth "surge". This lives client-
+                        // side now instead of the server accumulator, so it doesn't fight movement
+                        // prediction — which is what made the server-applied version stutter.
+                        VisceralCombatClient.lungeImpulse = vecMoveEnemy.multiply(config.impulseCoeff);
                     }
-
-                    // Predict locally for instant feel; server will ACK and own the authoritative result
-                    player.addVelocity(addX, 0, addZ);
-                    player.velocityDirty = true;
                     VisceralCombatClient.lungePending = true;
-                    VisceralCombatClient.lungeExpiry = player.getWorld().getTime() + 40L;
+                    VisceralCombatClient.lungeExpiry = now + 40L;
+                    // The lunge committed: spend a charge, recovering over config.chargeRecoveryTime
+                    // attack cooldowns of this weapon.
+                    VisceralCombatClient.consumeCharge(now, attackSpeed, config.chargeRecoveryTime);
 
                     NetworkManager.sendToServer(new Packet.Impulse(player.getId(), 1F, 0.8F,
                         (float) vecMoveEnemy.x, (float) vecMoveEnemy.y, (float) vecMoveEnemy.z, shouldBrake));
@@ -125,9 +135,9 @@ public class CombatEventsClient {
                 var vecRecoil = ((HitstopAccessor) clientPlayerEntity).getVelocityHitstop() != null
                     ? ((HitstopAccessor) clientPlayerEntity).getVelocityHitstop()
                     : Vec3d.ZERO;
-                NetworkManager.sendToServer(new Packet.Impulse(clientPlayerEntity.getId(), 1F,
-                    Math.min(1F, (float) (clientPlayerEntity.getAttributeValue(EntityAttributes.GENERIC_ATTACK_SPEED) / 4)),
-                    (float) vecRecoil.x, (float) vecRecoil.y, (float) vecRecoil.z, false));
+                // One-shot raw velocity change, client-predicted like the lunge (previously routed
+                // through the server impulse accumulator; that accumulator now serves only DUELING lunges).
+                clientPlayerEntity.addVelocity(vecRecoil.x, vecRecoil.y, vecRecoil.z);
                 clientPlayerEntity.velocityDirty = true;
             }
 
