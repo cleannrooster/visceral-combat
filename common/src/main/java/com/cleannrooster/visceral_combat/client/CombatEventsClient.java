@@ -140,11 +140,9 @@ public class CombatEventsClient {
                 var vecRecoil = ((HitstopAccessor) clientPlayerEntity).getVelocityHitstop() != null
                     ? ((HitstopAccessor) clientPlayerEntity).getVelocityHitstop()
                     : Vec3d.ZERO;
-                PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
-                new Packet.Impulse(clientPlayerEntity.getId(), 1F,
-                    Math.min(1F, (float) (clientPlayerEntity.getAttributeValue(EntityAttributes.GENERIC_ATTACK_SPEED) / 4)),
-                    (float) vecRecoil.x, (float) vecRecoil.y, (float) vecRecoil.z, false).write(buf);
-                NetworkManager.sendToServer(Packet.Impulse.ID, buf);
+                // One-shot raw velocity change, client-predicted like the lunge (previously routed through
+                // the server impulse accumulator).
+                clientPlayerEntity.addVelocity(vecRecoil.x, vecRecoil.y, vecRecoil.z);
                 clientPlayerEntity.velocityDirty = true;
             }
 

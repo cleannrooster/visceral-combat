@@ -1,6 +1,7 @@
 package com.cleannrooster.visceral_combat.forge;
 
 import com.cleannrooster.visceral_combat.VisceralCombatClient;
+import com.cleannrooster.visceral_combat.client.ChargeHudRenderer;
 import com.cleannrooster.visceral_combat.particle.ModParticles;
 import com.cleannrooster.visceral_combat.particle.SlashFlashParticle;
 import com.cleannrooster.visceral_combat.particle.SlashGlintParticle;
@@ -10,6 +11,8 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
 import net.minecraftforge.client.event.RegisterParticleProvidersEvent;
+import net.minecraftforge.client.event.RenderGuiEvent;
+import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.eventbus.api.IEventBus;
 import org.lwjgl.glfw.GLFW;
 
@@ -27,6 +30,11 @@ public class VisceralCombatClientForge {
 
         modEventBus.addListener(VisceralCombatClientForge::registerKeyMappings);
         modEventBus.addListener(VisceralCombatClientForge::registerParticleFactories);
+        MinecraftForge.EVENT_BUS.addListener(VisceralCombatClientForge::onRenderGui);
+    }
+
+    private static void onRenderGui(RenderGuiEvent.Post event) {
+        ChargeHudRenderer.render(event.getGuiGraphics());
     }
 
     private static void registerKeyMappings(RegisterKeyMappingsEvent event) {
