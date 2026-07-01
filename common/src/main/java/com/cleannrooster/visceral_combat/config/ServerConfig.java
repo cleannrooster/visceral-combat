@@ -18,6 +18,14 @@ public class ServerConfig implements ConfigData {
     public float lungeSpeed = 2.4F;
     @Comment("Forward Lunge speed cap")
     public float lungeSpeedCap = 4F;
+    @Comment("Minimum attack speed used for lunge/charge calculations (attack speeds below this are treated as this)")
+    public float minAttackSpeed = 0.8F;
+    @Comment("Maximum attack speed used for lunge/charge calculations (attack speeds above this are treated as this)")
+    public float maxAttackSpeed = 4.0F;
+    @Comment("Number of lunge charges the player has")
+    public int maxCharges = 4;
+    @Comment("Lunge charge recovery time, as a multiple of the weapon's attack cooldown (e.g. 8 = a spent charge takes 8 full attack cooldowns to recover; higher = slower recovery)")
+    public float chargeRecoveryTime = 8F;
     @Comment("Impulse decay coefficient")
     public float impulseCoeff = 0.2F;
     @Comment("Impulse speed coefficient")

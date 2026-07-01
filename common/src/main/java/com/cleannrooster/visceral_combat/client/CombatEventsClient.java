@@ -23,11 +23,20 @@ public class CombatEventsClient {
         BetterCombatClientEvents.ATTACK_START.register((player, attackHand) -> {
             var config = VisceralCombatClient.clientConfig;
             if (config == null) return; // not synced from the server yet: do nothing
+            var now = player.getWorld().getTime();
             if (config.moveAttack
-                    && !VisceralCombatClient.lungePending) {
-                var cap = player.getMovementSpeed() * 2.0;
-                var speed = 1.6F / player.getAttributeValue(EntityAttributes.GENERIC_ATTACK_SPEED);
-                var clamped = Math.max(-cap / 2, Math.min(cap, speed));
+                    && !VisceralCombatClient.lungePending
+                    && VisceralCombatClient.hasCharge(now)) {
+                var attackSpeed = Math.max(config.minAttackSpeed, Math.min(config.maxAttackSpeed,
+                    player.getAttributeValue(EntityAttributes.GENERIC_ATTACK_SPEED)));
+                // Lunge magnitude vs. attack speed: a bump peaking at PEAK_ATTACK_SPEED, falling off for
+                // weapons both faster and slower. ATTACK_SPEED_INFLUENCE is how much of the magnitude
+                // attack speed drives (0 = flat, 1 = fully).
+                final double PEAK_ATTACK_SPEED = 0.8;
+                final double ATTACK_SPEED_INFLUENCE = 1.0;
+                var ratio = attackSpeed / PEAK_ATTACK_SPEED;
+                var bump = 2.0 * ratio / (ratio * ratio + 1.0); // 1.0 at the peak, less away from it
+                var speed = 1.0 - ATTACK_SPEED_INFLUENCE * (1.0 - bump);
                 var lookDir = player.getRotationVec(1.0F);
                 var lookHoriz = new Vec3d(lookDir.x, 0, lookDir.z).normalize();
                 var mode = config.lungeMode;
@@ -54,30 +63,29 @@ public class CombatEventsClient {
                     lungeDir = movement.multiply(backwardsCoeff);
                 }
 
-                var vecMoveEnemy = lungeDir.multiply(clamped).multiply(config.lungeSpeed, 0, config.lungeSpeed);
+                // Halved code-side so existing configs keep their original lungeSpeed scale.
+                var lungeSpeed = config.lungeSpeed * 0.5;
+                var vecMoveEnemy = lungeDir.multiply(speed).multiply(lungeSpeed, 0, lungeSpeed);
 
                 var currentVel = player.getVelocity();
                 var horizSpeedSq = currentVel.x * currentVel.x + currentVel.z * currentVel.z;
-                var lungeSpeedCap = player.getAttributeValue(EntityAttributes.GENERIC_MOVEMENT_SPEED)*1.4 * config.lungeSpeedCap;
+                // Doubled code-side so existing configs keep their original lungeSpeedCap scale.
+                var lungeSpeedCap = player.getAttributeValue(EntityAttributes.GENERIC_MOVEMENT_SPEED) * 1.4 * config.lungeSpeedCap * 2.0;
                 var lungeSpeedCapSq = lungeSpeedCap * lungeSpeedCap;
 
                 if (horizSpeedSq < lungeSpeedCapSq) {
-                    var addX = vecMoveEnemy.x;
-                    var addZ = vecMoveEnemy.z;
-                    var newX = currentVel.x + addX;
-                    var newZ = currentVel.z + addZ;
-                    var newHorizSpeedSq = newX * newX + newZ * newZ;
-                    if (newHorizSpeedSq > lungeSpeedCapSq) {
-                        var scale = lungeSpeedCap / Math.sqrt(newHorizSpeedSq);
-                        addX = newX * scale - currentVel.x;
-                        addZ = newZ * scale - currentVel.z;
+                    // Instant client-side prediction (all modes); server ACKs and gates the charge.
+                    VisceralCombatClient.applyLungeVelocity(player, config, vecMoveEnemy.x, vecMoveEnemy.z);
+                    if (mode == LungeMode.DUELING) {
+                        // DUELING adds a short decaying tail applied client-side over the next few ticks
+                        // (see VisceralCombatClient CLIENT_PRE) for its smooth "surge".
+                        VisceralCombatClient.lungeImpulse = vecMoveEnemy.multiply(config.impulseCoeff);
                     }
-
-                    // Predict locally for instant feel; server will ACK and own the authoritative result
-                    player.addVelocity(addX, 0, addZ);
-                    player.velocityDirty = true;
                     VisceralCombatClient.lungePending = true;
-                    VisceralCombatClient.lungeExpiry = player.getWorld().getTime() + 40L;
+                    VisceralCombatClient.lungeExpiry = now + 40L;
+                    // The lunge committed: spend a charge, recovering over config.chargeRecoveryTime
+                    // attack cooldowns of this weapon.
+                    VisceralCombatClient.consumeCharge(now, attackSpeed, config.chargeRecoveryTime);
 
                     PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
                     new Packet.Impulse(player.getId(), 1F, 0.8F,

@@ -1,8 +1,12 @@
 package com.cleannrooster.visceral_combat.api;
 
+import com.cleannrooster.visceral_combat.util.LungeCharges;
 import net.minecraft.util.math.Vec3d;
 
 public interface HitstopAccessor {
+    /** This entity's authoritative (server-side) lunge charge ledger; lazily created. */
+    LungeCharges getLungeCharges();
+
     int getHitstopTicks();
     void setVelocityHitstop(Vec3d vec3d);
     void setHitstop(int hitstop);

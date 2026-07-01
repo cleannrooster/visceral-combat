@@ -51,4 +51,31 @@ public class Packet {
         public void write(PacketByteBuf buf) {}
         public static LungeAck read(PacketByteBuf buf) { return new LungeAck(); }
     }
+
+    /**
+     * Authoritative lunge-charge state pushed from server to client so the HUD reflects the server's
+     * ledger. Carries each slot's recovery start/ready world tick; the client compares them against its
+     * own (server-synced) world clock, so the values stay correct regardless of when the packet lands.
+     */
+    public record ChargeSync(long[] startTick, long[] readyTick) {
+        public static final Identifier ID = new Identifier("visceral_combat", "charge_sync");
+        public void write(PacketByteBuf buf) {
+            int n = Math.min(this.startTick.length, this.readyTick.length);
+            buf.writeVarInt(n);
+            for (int i = 0; i < n; i++) {
+                buf.writeLong(this.startTick[i]);
+                buf.writeLong(this.readyTick[i]);
+            }
+        }
+        public static ChargeSync read(PacketByteBuf buf) {
+            int n = buf.readVarInt();
+            long[] start = new long[n];
+            long[] ready = new long[n];
+            for (int i = 0; i < n; i++) {
+                start[i] = buf.readLong();
+                ready[i] = buf.readLong();
+            }
+            return new ChargeSync(start, ready);
+        }
+    }
 }

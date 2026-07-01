@@ -3,6 +3,7 @@ package com.cleannrooster.visceral_combat.mixin;
 import com.cleannrooster.visceral_combat.VisceralCombat;
 import com.cleannrooster.visceral_combat.api.HitstopAccessor;
 import com.cleannrooster.visceral_combat.util.EntityHelper;
+import com.cleannrooster.visceral_combat.util.LungeCharges;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.attribute.EntityAttributes;
@@ -30,6 +31,8 @@ public class LivingEntityMixin implements HitstopAccessor {
     private long lastAttackedTemporary = 0;
     private long lastHitstopAppliedTime = 0;
     protected boolean shouldClamp = false;
+    // Authoritative lunge charge ledger for this entity (server-side enforcement); lazily created.
+    private LungeCharges lungeCharges;
 
     @Inject(at = @At("RETURN"), method = "getOffHandStack", cancellable = true)
     public void getOffHandStackHolster(CallbackInfoReturnable<ItemStack> returnable) {
@@ -209,4 +212,11 @@ public class LivingEntityMixin implements HitstopAccessor {
     @Override public void setHolster(boolean holster) { this.holster = holster; }
     @Override public boolean shouldClamp() { return shouldClamp; }
     @Override public void setShouldClamp(boolean shouldClamp) { this.shouldClamp = shouldClamp; }
+    @Override public LungeCharges getLungeCharges() {
+        if (lungeCharges == null) {
+            lungeCharges = new LungeCharges(VisceralCombat.config != null
+                ? VisceralCombat.config.maxCharges : LungeCharges.DEFAULT_MAX_CHARGES);
+        }
+        return lungeCharges;
+    }
 }

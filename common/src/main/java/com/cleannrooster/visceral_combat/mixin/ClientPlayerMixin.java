@@ -2,6 +2,7 @@ package com.cleannrooster.visceral_combat.mixin;
 
 import com.cleannrooster.visceral_combat.VisceralCombat;
 import com.cleannrooster.visceral_combat.api.HitstopAccessor;
+import com.cleannrooster.visceral_combat.util.LungeCharges;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.attribute.EntityAttributes;
@@ -96,4 +97,13 @@ public class ClientPlayerMixin implements HitstopAccessor {
     protected long lastHitstopAppliedTime = 0;
     @Override public long getLastHitstopAppliedTime() { return lastHitstopAppliedTime; }
     @Override public void setLastHitstopAppliedTime(long time) { this.lastHitstopAppliedTime = time; }
+
+    private LungeCharges lungeCharges;
+    @Override public LungeCharges getLungeCharges() {
+        if (lungeCharges == null) {
+            lungeCharges = new LungeCharges(VisceralCombat.config != null
+                ? VisceralCombat.config.maxCharges : LungeCharges.DEFAULT_MAX_CHARGES);
+        }
+        return lungeCharges;
+    }
 }
