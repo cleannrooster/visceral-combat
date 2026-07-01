@@ -36,6 +36,9 @@ public class ChargeHudRenderer {
     public static void render(DrawContext context) {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.player == null || client.options.hudHidden) return;
+        // Nothing to show when the charge system is off (or config not synced yet).
+        var config = VisceralCombatClient.clientConfig;
+        if (config == null || !config.chargesEnabled) return;
         // Only when the crosshair itself would show.
         if (!client.options.getPerspective().isFirstPerson()) return;
 

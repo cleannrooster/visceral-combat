@@ -31,7 +31,8 @@ public class ServerNetworkHandler {
      */
     private static boolean gateLungeCharge(PlayerEntity player) {
         ServerConfig config = VisceralCombat.config;
-        if (config == null || !(player instanceof HitstopAccessor accessor)) return true;
+        // No config, charge system disabled, or non-player: no gating (lunge always granted).
+        if (config == null || !config.chargesEnabled || !(player instanceof HitstopAccessor accessor)) return true;
         LungeCharges charges = accessor.getLungeCharges();
         charges.setSize(config.maxCharges);
         double attackSpeed = Math.clamp(player.getAttributeValue(EntityAttributes.GENERIC_ATTACK_SPEED),
