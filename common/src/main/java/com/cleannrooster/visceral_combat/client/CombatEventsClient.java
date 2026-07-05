@@ -25,8 +25,9 @@ public class CombatEventsClient {
             if (config == null) return; // not synced from the server yet: do nothing
             var now = player.getWorld().getTime();
             if (config.moveAttack
+                    && (!config.requireSprint || player.isSprinting())
                     && !VisceralCombatClient.lungePending
-                    && VisceralCombatClient.hasCharge(now)) {
+                    && (!config.chargesEnabled || VisceralCombatClient.hasCharge(now))) {
                 var attackSpeed = Math.max(config.minAttackSpeed, Math.min(config.maxAttackSpeed,
                     player.getAttributeValue(EntityAttributes.GENERIC_ATTACK_SPEED)));
                 // Lunge magnitude vs. attack speed: a bump peaking at PEAK_ATTACK_SPEED, falling off for
@@ -83,9 +84,11 @@ public class CombatEventsClient {
                     }
                     VisceralCombatClient.lungePending = true;
                     VisceralCombatClient.lungeExpiry = now + 40L;
-                    // The lunge committed: spend a charge, recovering over config.chargeRecoveryTime
-                    // attack cooldowns of this weapon.
-                    VisceralCombatClient.consumeCharge(now, attackSpeed, config.chargeRecoveryTime);
+                    // The lunge committed: spend a charge (when the charge system is on), recovering over
+                    // config.chargeRecoveryTime attack cooldowns of this weapon.
+                    if (config.chargesEnabled) {
+                        VisceralCombatClient.consumeCharge(now, attackSpeed, config.chargeRecoveryTime);
+                    }
 
                     PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
                     new Packet.Impulse(player.getId(), 1F, 0.8F,

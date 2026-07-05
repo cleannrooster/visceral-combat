@@ -8,6 +8,8 @@ import me.shedaniel.cloth.clothconfig.shadowed.blue.endless.jankson.Comment;
 public class ServerConfig implements ConfigData {
     @Comment("Forward Lunge on attack")
     public boolean moveAttack = true;
+    @Comment("Require the player to be sprinting in order to lunge on attack")
+    public boolean requireSprint = true;
     @Comment("Lunge mode: ARCADE (move in input direction), DUELING (always lunge forward), HYBRID (forward + configurable side influence)")
     public LungeMode lungeMode = LungeMode.HYBRID;
     @Comment("HYBRID mode only: how much left/right movement input is blended into the forward lunge (0 = pure forward, 1 = full sideways influence)")
@@ -22,6 +24,8 @@ public class ServerConfig implements ConfigData {
     public float minAttackSpeed = 0.8F;
     @Comment("Maximum attack speed used for lunge/charge calculations (attack speeds above this are treated as this)")
     public float maxAttackSpeed = 4.0F;
+    @Comment("Enable the lunge charge system (if false, lunges never require or consume charges and the charge HUD is hidden)")
+    public boolean chargesEnabled = true;
     @Comment("Number of lunge charges the player has")
     public int maxCharges = 4;
     @Comment("Lunge charge recovery time, as a multiple of the weapon's attack cooldown (e.g. 8 = a spent charge takes 8 full attack cooldowns to recover; higher = slower recovery)")
