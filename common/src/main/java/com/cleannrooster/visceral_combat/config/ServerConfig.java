@@ -40,7 +40,7 @@ public class ServerConfig implements ConfigData {
     public boolean impactEnemy = true;
     @Comment("Enemy directional coefficient")
     public float dirCoeff = 1F;
-    @Comment("Attack Particles")
+    @Comment("Draw the slash ribbon: an arc laid over the weapon's real Better Combat hitbox")
     public boolean particles = true;
     @Comment("Hitstop on Self")
     public boolean hitstopSelf = true;

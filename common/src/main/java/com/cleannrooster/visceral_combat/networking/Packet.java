@@ -1,5 +1,6 @@
 package com.cleannrooster.visceral_combat.networking;
 
+import com.cleannrooster.visceral_combat.combat.AttackSwing;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.packet.CustomPayload;
@@ -27,12 +28,34 @@ public class Packet {
         public CustomPayload.Id<? extends CustomPayload> getId() { return PACKET_ID; }
     }
 
-    public record Packets(float yaw, float pitch, float range) implements CustomPayload {
-        public static final Identifier ID = Identifier.of("visceral_combat", "particle");
-        public static final CustomPayload.Id<Packets> PACKET_ID = new CustomPayload.Id<>(ID);
-        public static final PacketCodec<PacketByteBuf, Packets> CODEC = PacketCodec.of(
-            (val, buf) -> { buf.writeFloat(val.yaw); buf.writeFloat(val.pitch); buf.writeFloat(val.range); },
-            buf -> new Packets(buf.readFloat(), buf.readFloat(), buf.readFloat())
+    /**
+     * The attacker's own report of a swing's damage-volume parameters, sent the moment the attack
+     * starts — only that client knows which Better Combat attack fired. Carries no attacker id: the
+     * server stamps the sender's entity id from the connection when it relays, so a modified client
+     * cannot attribute a swing to someone else.
+     */
+    public record SwingC2S(AttackSwing swing) implements CustomPayload {
+        public static final Identifier ID = Identifier.of("visceral_combat", "swing");
+        public static final CustomPayload.Id<SwingC2S> PACKET_ID = new CustomPayload.Id<>(ID);
+        public static final PacketCodec<PacketByteBuf, SwingC2S> CODEC = PacketCodec.of(
+            (val, buf) -> val.swing.write(buf),
+            buf -> new SwingC2S(AttackSwing.read(buf))
+        );
+
+        @Override
+        public CustomPayload.Id<? extends CustomPayload> getId() { return PACKET_ID; }
+    }
+
+    /**
+     * A swing relayed to everyone who can see the attacker, so every client draws the same ribbon over
+     * the same volume. The swing's parameters were clamped server-side on the way through.
+     */
+    public record SwingS2C(int attackerId, AttackSwing swing) implements CustomPayload {
+        public static final Identifier ID = Identifier.of("visceral_combat", "swing_broadcast");
+        public static final CustomPayload.Id<SwingS2C> PACKET_ID = new CustomPayload.Id<>(ID);
+        public static final PacketCodec<PacketByteBuf, SwingS2C> CODEC = PacketCodec.of(
+            (val, buf) -> { buf.writeVarInt(val.attackerId); val.swing.write(buf); },
+            buf -> new SwingS2C(buf.readVarInt(), AttackSwing.read(buf))
         );
 
         @Override
