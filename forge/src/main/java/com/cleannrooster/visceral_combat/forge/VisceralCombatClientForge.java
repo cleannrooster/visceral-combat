@@ -2,16 +2,14 @@ package com.cleannrooster.visceral_combat.forge;
 
 import com.cleannrooster.visceral_combat.VisceralCombatClient;
 import com.cleannrooster.visceral_combat.client.ChargeHudRenderer;
-import com.cleannrooster.visceral_combat.particle.ModParticles;
-import com.cleannrooster.visceral_combat.particle.SlashFlashParticle;
-import com.cleannrooster.visceral_combat.particle.SlashGlintParticle;
+import com.cleannrooster.visceral_combat.client.combat.SlashEffectManager;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
-import net.minecraftforge.client.event.RegisterParticleProvidersEvent;
 import net.minecraftforge.client.event.RenderGuiEvent;
+import net.minecraftforge.client.event.RenderLevelStageEvent;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.eventbus.api.IEventBus;
 import org.lwjgl.glfw.GLFW;
@@ -29,8 +27,8 @@ public class VisceralCombatClientForge {
         VisceralCombatClient.clientInit();
 
         modEventBus.addListener(VisceralCombatClientForge::registerKeyMappings);
-        modEventBus.addListener(VisceralCombatClientForge::registerParticleFactories);
         MinecraftForge.EVENT_BUS.addListener(VisceralCombatClientForge::onRenderGui);
+        MinecraftForge.EVENT_BUS.addListener(VisceralCombatClientForge::onRenderLevelStage);
     }
 
     private static void onRenderGui(RenderGuiEvent.Post event) {
@@ -41,8 +39,13 @@ public class VisceralCombatClientForge {
         event.register(VisceralCombatClient.holsterBinding);
     }
 
-    private static void registerParticleFactories(RegisterParticleProvidersEvent event) {
-        event.registerSpriteSet(ModParticles.SLASH_FLASH.get(), SlashFlashParticle.Factory::new);
-        event.registerSpriteSet(ModParticles.SLASH_GLINT.get(), SlashGlintParticle.Factory::new);
+    /**
+     * Loader shim for the shared slash renderer. AFTER_PARTICLES is Forge's counterpart to Fabric's
+     * AFTER_TRANSLUCENT, so the arcs land at the same point in the frame on both loaders.
+     */
+    private static void onRenderLevelStage(RenderLevelStageEvent event) {
+        if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_PARTICLES) {
+            SlashEffectManager.render(event.getPoseStack(), event.getCamera(), event.getPartialTick());
+        }
     }
 }

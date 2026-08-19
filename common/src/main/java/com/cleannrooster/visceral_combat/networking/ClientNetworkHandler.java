@@ -3,6 +3,7 @@ package com.cleannrooster.visceral_combat.networking;
 import com.cleannrooster.visceral_combat.VisceralCombat;
 import com.cleannrooster.visceral_combat.VisceralCombatClient;
 import com.cleannrooster.visceral_combat.api.HitstopAccessor;
+import com.cleannrooster.visceral_combat.client.combat.SlashEffectManager;
 import com.cleannrooster.visceral_combat.config.ConfigSync;
 import dev.architectury.networking.NetworkManager;
 import net.fabricmc.api.EnvType;
@@ -33,6 +34,12 @@ public class ClientNetworkHandler {
         NetworkManager.registerReceiver(NetworkManager.Side.S2C, Packet.LungeAck.ID, (buf, context) -> {
             Packet.LungeAck.read(buf);
             context.queue(() -> VisceralCombatClient.lungePending = false);
+        });
+
+        NetworkManager.registerReceiver(NetworkManager.Side.S2C, Packet.Swing.S2C_ID, (buf, context) -> {
+            Packet.Swing payload = Packet.Swing.read(buf);
+            // Someone else swung: draw the same ribbon over the same volume they see.
+            context.queue(() -> SlashEffectManager.spawn(payload.attackerId(), payload.swing()));
         });
 
         NetworkManager.registerReceiver(NetworkManager.Side.S2C, Packet.ChargeSync.ID, (buf, context) -> {

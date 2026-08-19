@@ -2,6 +2,7 @@ package com.cleannrooster.visceral_combat;
 
 import com.cleannrooster.visceral_combat.api.HitstopAccessor;
 import com.cleannrooster.visceral_combat.client.CombatEventsClient;
+import com.cleannrooster.visceral_combat.client.combat.SlashEffectManager;
 import com.cleannrooster.visceral_combat.config.ServerConfig;
 import com.cleannrooster.visceral_combat.networking.ClientNetworkHandler;
 import com.cleannrooster.visceral_combat.networking.Packet;
@@ -73,6 +74,7 @@ public class VisceralCombatClient {
     public static void clientInit() {
         ClientNetworkHandler.register();
         CombatEventsClient.register();
+        SlashEffectManager.init();
 
         ClientTickEvent.CLIENT_POST.register(client -> {
             // No world means disconnected / main menu: forget the previous server's config so it can
@@ -81,6 +83,7 @@ public class VisceralCombatClient {
                 clientConfig = null;
                 resetCharges();
                 lungeImpulse = Vec3d.ZERO;
+                SlashEffectManager.clear();
             }
             if (clientConfig != null) {
                 setMaxCharges(clientConfig.maxCharges);

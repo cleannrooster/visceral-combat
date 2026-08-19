@@ -4,8 +4,6 @@ import com.cleannrooster.visceral_combat.config.ConfigSync;
 import com.cleannrooster.visceral_combat.config.ServerConfig;
 import com.cleannrooster.visceral_combat.config.ServerConfigWrapper;
 import com.cleannrooster.visceral_combat.networking.ServerNetworkHandler;
-import com.cleannrooster.visceral_combat.particle.ModParticles;
-import com.cleannrooster.visceral_combat.util.TickScheduler;
 import dev.architectury.event.events.common.PlayerEvent;
 import dev.architectury.networking.NetworkManager;
 import me.shedaniel.autoconfig.AutoConfig;
@@ -30,8 +28,6 @@ public class VisceralCombat {
             NetworkManager.sendToPlayer(player, ConfigSync.ID, ConfigSync.write(config))
         );
 
-        ModParticles.register();
-        TickScheduler.register();
         ServerNetworkHandler.register();
         ServerEventHandlers.register();
 

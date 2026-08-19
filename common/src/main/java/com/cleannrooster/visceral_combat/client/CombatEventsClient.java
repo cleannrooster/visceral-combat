@@ -2,19 +2,28 @@ package com.cleannrooster.visceral_combat.client;
 
 import com.cleannrooster.visceral_combat.VisceralCombatClient;
 import com.cleannrooster.visceral_combat.api.HitstopAccessor;
+import com.cleannrooster.visceral_combat.client.combat.SlashEffectManager;
+import com.cleannrooster.visceral_combat.combat.AttackSwing;
+import com.cleannrooster.visceral_combat.combat.SlashShape;
 import com.cleannrooster.visceral_combat.config.LungeMode;
 import com.cleannrooster.visceral_combat.networking.Packet;
 import dev.architectury.networking.NetworkManager;
 import io.netty.buffer.Unpooled;
+import net.bettercombat.api.AttackHand;
 import net.bettercombat.api.WeaponAttributes;
+import net.bettercombat.api.client.AttackRangeExtensions;
 import net.bettercombat.api.client.BetterCombatClientEvents;
+import net.bettercombat.logic.PlayerAttackHelper;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.util.math.Vec3d;
+
+import java.util.Comparator;
 
 @Environment(EnvType.CLIENT)
 public class CombatEventsClient {
@@ -97,19 +106,16 @@ public class CombatEventsClient {
                 }
             }
 
-            if (config.particles
-                    && attackHand.attack() != null) {
-                float yaw = (float) (!attackHand.attack().hitbox().equals(WeaponAttributes.HitBoxShape.HORIZONTAL_PLANE) ? 0
-                    : (!attackHand.isOffHand() && (!attackHand.attack().animation().contains("left") || attackHand.attack().animation().contains("right"))
-                        ? 180 - (60 + player.getRandom().nextBetween(0, 60))
-                        : 240 + player.getRandom().nextBetween(0, 60)));
-                float pitch = attackHand.attack().hitbox().equals(WeaponAttributes.HitBoxShape.FORWARD_BOX) ? 0.25F : 1.0F;
-                float range = (float) (attackHand.attributes().attackRange() == 0.0
-                    ? 4.5
-                    : attackHand.attributes().attackRange());
-                PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
-                new Packet.Packets(yaw, pitch, range).write(buf);
-                NetworkManager.sendToServer(Packet.Packets.ID, buf);
+            if (config.particles && attackHand.attack() != null) {
+                AttackSwing swing = describeSwing(player, attackHand);
+                if (swing != null) {
+                    // Draw it here and now rather than waiting for the server to echo it back: the
+                    // ribbon has to start on the same frame the animation does.
+                    SlashEffectManager.spawn(player, swing);
+                    PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
+                    new Packet.Swing(player.getId(), swing).write(buf);
+                    NetworkManager.sendToServer(Packet.Swing.C2S_ID, buf);
+                }
             }
         });
 
@@ -161,5 +167,70 @@ public class CombatEventsClient {
                 }
             }
         });
+    }
+
+    /**
+     * Read the swing about to happen off the Better Combat attack that fired it.
+     *
+     * <p>Every value here is one Better Combat itself will use when the hit resolves: the reach its
+     * target finder ends up with (see {@link #effectiveRange}), the arc its radial filter tests against,
+     * the hitbox shape that decides which plane the volume lies in, and the tick the damage lands on.
+     * Nothing is invented for the visual's benefit, which is what lets the ribbon be the hitbox rather
+     * than a decoration near it.
+     *
+     * @return null when the attack has no reach to draw — Better Combat would hit nothing either
+     */
+    private static AttackSwing describeSwing(ClientPlayerEntity player, AttackHand attackHand) {
+        WeaponAttributes.Attack attack = attackHand.attack();
+        float range = (float) effectiveRange(player, attackHand.attributes().attackRange());
+        if (range <= 0.0f) {
+            return null;
+        }
+        SlashShape shape = SlashShape.from(attack.hitbox());
+        // The damage is evaluated when the upswing completes, so that is when the ribbon finishes its
+        // cut. Same expression Better Combat uses to schedule the hit (see its client attack hook).
+        int swingTicks = Math.max(1, Math.round(
+            PlayerAttackHelper.getAttackCooldownTicksCapped(player) * (float) attackHand.upswingRate()));
+        // Which way the blade travels is the animation's business — the volume is symmetric about the
+        // look direction — but the arc has to sweep the way the arms do.
+        String animation = attack.animation();
+        boolean rightToLeft = !attackHand.isOffHand()
+            && (!animation.contains("left") || animation.contains("right"));
+        boolean reversed = shape == SlashShape.VERTICAL_SWEEP
+            ? animation.contains("up")  // overhead chops fall; the rare rising cut goes the other way
+            : rightToLeft;
+        return new AttackSwing(shape, range, (float) attack.angle(), swingTicks, reversed);
+    }
+
+    /**
+     * The reach Better Combat will actually test with, once any registered range extensions have been
+     * applied.
+     *
+     * <p>Mirrors {@code TargetFinder.applyAttackRangeModifiers}, which is private: every source is asked
+     * about the weapon's <em>base</em> reach rather than a progressively modified one, the modifiers it
+     * returns are ordered additions before multiplications, and then folded in that order.
+     *
+     * <p>Without this, a mod that extends reach — an enchantment, a buff — would move the damage volume
+     * and leave the ribbon drawn on the weapon's unmodified range, which is exactly the kind of quiet
+     * disagreement between visual and hitbox this whole system exists to prevent.
+     */
+    private static double effectiveRange(ClientPlayerEntity player, double baseRange) {
+        var sources = AttackRangeExtensions.sources();
+        if (sources.isEmpty()) {
+            return baseRange;
+        }
+        var context = new AttackRangeExtensions.Context(player, baseRange);
+        var modifiers = sources.stream()
+            .map(source -> source.apply(context))
+            .sorted(Comparator.comparingInt(AttackRangeExtensions.Modifier::operationOrder))
+            .toList();
+        double range = baseRange;
+        for (var modifier : modifiers) {
+            switch (modifier.operation()) {
+                case ADD -> range += modifier.value();
+                case MULTIPLY -> range *= modifier.value();
+            }
+        }
+        return range;
     }
 }

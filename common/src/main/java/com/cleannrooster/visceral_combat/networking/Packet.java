@@ -1,5 +1,6 @@
 package com.cleannrooster.visceral_combat.networking;
 
+import com.cleannrooster.visceral_combat.combat.AttackSwing;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.util.Identifier;
 
@@ -17,15 +18,23 @@ public class Packet {
         public static Holster read(PacketByteBuf buf) { return new Holster(buf.readBoolean()); }
     }
 
-    public record Packets(float yaw, float pitch, float range) {
-        public static final Identifier ID = new Identifier("visceral_combat", "particle");
+    /**
+     * One swing's damage-volume parameters, so every client that can see the attacker can draw the same
+     * ribbon over the same volume.
+     *
+     * <p>Sent C2S by the attacker (only they know which Better Combat attack fired) and relayed S2C to
+     * everyone nearby. The attacker id is authoritative on the way out: the server stamps it from the
+     * sending connection rather than trusting the field.
+     */
+    public record Swing(int attackerId, AttackSwing swing) {
+        public static final Identifier C2S_ID = new Identifier("visceral_combat", "swing");
+        public static final Identifier S2C_ID = new Identifier("visceral_combat", "swing_broadcast");
         public void write(PacketByteBuf buf) {
-            buf.writeFloat(this.yaw);
-            buf.writeFloat(this.pitch);
-            buf.writeFloat(this.range);
+            buf.writeVarInt(this.attackerId);
+            this.swing.write(buf);
         }
-        public static Packets read(PacketByteBuf buf) {
-            return new Packets(buf.readFloat(), buf.readFloat(), buf.readFloat());
+        public static Swing read(PacketByteBuf buf) {
+            return new Swing(buf.readVarInt(), AttackSwing.read(buf));
         }
     }
 

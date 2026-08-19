@@ -2,15 +2,13 @@ package com.cleannrooster.visceral_combat.fabric;
 
 import com.cleannrooster.visceral_combat.VisceralCombatClient;
 import com.cleannrooster.visceral_combat.client.ChargeHudRenderer;
-import com.cleannrooster.visceral_combat.particle.ModParticles;
-import com.cleannrooster.visceral_combat.particle.SlashFlashParticle;
-import com.cleannrooster.visceral_combat.particle.SlashGlintParticle;
+import com.cleannrooster.visceral_combat.client.combat.SlashEffectManager;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
-import net.fabricmc.fabric.api.client.particle.v1.ParticleFactoryRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
+import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
 import org.lwjgl.glfw.GLFW;
@@ -19,9 +17,6 @@ import org.lwjgl.glfw.GLFW;
 public class VisceralCombatClientFabric implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
-        ParticleFactoryRegistry.getInstance().register(ModParticles.SLASH_FLASH.get(), SlashFlashParticle.Factory::new);
-        ParticleFactoryRegistry.getInstance().register(ModParticles.SLASH_GLINT.get(), SlashGlintParticle.Factory::new);
-
         KeyBindingHelper.registerKeyBinding(VisceralCombatClient.holsterBinding = new KeyBinding(
             "visceral_combat.binds.holster",
             InputUtil.Type.KEYSYM,
@@ -30,6 +25,11 @@ public class VisceralCombatClientFabric implements ClientModInitializer {
         ));
 
         HudRenderCallback.EVENT.register((drawContext, tickDelta) -> ChargeHudRenderer.render(drawContext));
+
+        // Loader shim for the shared slash renderer. Drawn after translucent terrain and particles so the
+        // arcs blend over the world; all the geometry lives in common.
+        WorldRenderEvents.AFTER_TRANSLUCENT.register(context ->
+            SlashEffectManager.render(context.matrixStack(), context.camera(), context.tickDelta()));
 
         VisceralCombatClient.clientInit();
     }
