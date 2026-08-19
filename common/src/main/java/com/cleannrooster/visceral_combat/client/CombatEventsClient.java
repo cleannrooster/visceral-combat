@@ -113,9 +113,13 @@ public class CombatEventsClient {
                     // Draw it here and now rather than waiting for the server to echo it back: the
                     // ribbon has to start on the same frame the animation does.
                     SlashEffectManager.spawn(player, swing);
-                    PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
-                    new Packet.Swing(player.getId(), swing).write(buf);
-                    NetworkManager.sendToServer(Packet.Swing.C2S_ID, buf);
+                    // In self-only mode the server would drop the relay anyway (it enforces this
+                    // regardless); not sending saves the packet.
+                    if (config.ribbonsVisibleToOthers) {
+                        PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
+                        new Packet.Swing(player.getId(), swing).write(buf);
+                        NetworkManager.sendToServer(Packet.Swing.C2S_ID, buf);
+                    }
                 }
             }
         });
