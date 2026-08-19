@@ -38,6 +38,11 @@ public final class SlashRenderer {
     /** Radial subdivisions of the outer bloom. Few: it is a gradient, not a shape. */
     private static final int OVERREACH_SEGMENTS = 3;
 
+    /** The color a connecting swing snaps to before draining back to the profile's own tint. */
+    private static final float FLASH_RED = 1.0f;
+    private static final float FLASH_GREEN = 0.12f;
+    private static final float FLASH_BLUE = 0.08f;
+
     private SlashRenderer() {
     }
 
@@ -69,6 +74,15 @@ public final class SlashRenderer {
         // look it can never occupy space the damage volume does not.
         float thickness = (float) Math.min(profile.thickness(), AttackGeometry.halfThickness(swing));
 
+        // Hit feedback: a swing that connected snaps to red and drains back to the profile's tint.
+        // Purely local state — the flash exists only on the attacker's own client, so unlike the
+        // geometry it never has to be validated. It also overrides the leading-edge alpha ramp below,
+        // so the whole visible arc flashes as one confirmed shape instead of flickering at the tip.
+        float flash = effect.flashStrength(tickDelta);
+        float red = MathHelper.lerp(flash, profile.red(), FLASH_RED);
+        float green = MathHelper.lerp(flash, profile.green(), FLASH_GREEN);
+        float blue = MathHelper.lerp(flash, profile.blue(), FLASH_BLUE);
+
         MatrixStack.Entry entry = matrices.peek();
 
         // The bloom goes down first, underneath the real arc.
@@ -81,17 +95,21 @@ public final class SlashRenderer {
         if (profile.hasOverreach()) {
             Ribbon bloom = buildOverreach(effect, swing, frame, tickDelta);
             if (bloom != null) {
-                emit(consumer, entry, bloom, profile, alpha * SlashProfile.OVERREACH_ALPHA, normal);
+                // The bloom shares the flash hue but never its alpha punch: it marks space the attack
+                // cannot hit, and a hit must not brighten it.
+                emit(consumer, entry, bloom, red, green, blue,
+                    alpha * SlashProfile.OVERREACH_ALPHA, 0.0f, normal);
             }
         }
 
         if (thickness > 0.001f) {
             // Two parallel sheets read as a slab with real presence, and the slab is the hitbox's own
             // thickness rather than a decorative one.
-            emit(consumer, entry, offsetGrid(grid, normal, thickness), profile, alpha, normal);
-            emit(consumer, entry, offsetGrid(grid, normal, -thickness), profile, alpha, normal.multiply(-1.0));
+            emit(consumer, entry, offsetGrid(grid, normal, thickness), red, green, blue, alpha, flash, normal);
+            emit(consumer, entry, offsetGrid(grid, normal, -thickness), red, green, blue, alpha, flash,
+                normal.multiply(-1.0));
         } else {
-            emit(consumer, entry, grid, profile, alpha, normal);
+            emit(consumer, entry, grid, red, green, blue, alpha, flash, normal);
         }
     }
 
@@ -273,7 +291,7 @@ public final class SlashRenderer {
     }
 
     private static void emit(VertexConsumer consumer, MatrixStack.Entry entry, Ribbon ribbon,
-                             SlashProfile profile, float alpha, Vec3d normal) {
+                             float red, float green, float blue, float alpha, float flash, Vec3d normal) {
         Vec3d[][] points = ribbon.points();
         int rows = points.length - 1;
         int cols = points[0].length - 1;
@@ -290,37 +308,39 @@ public final class SlashRenderer {
                 Vec3d p01 = points[r][c + 1];
 
                 // Per-corner rather than per-row, so a ribbon that fades across the blade as well as
-                // along the swing (the outer bloom) gets a smooth gradient in both directions.
-                float a00 = alpha * ribbon.alphaAt(r, c);
-                float a01 = alpha * ribbon.alphaAt(r, c + 1);
-                float a11 = alpha * ribbon.alphaAt(r + 1, c + 1);
-                float a10 = alpha * ribbon.alphaAt(r + 1, c);
+                // along the swing (the outer bloom) gets a smooth gradient in both directions. The
+                // flash lifts each corner toward full: the confirmed arc shows itself whole.
+                float a00 = alpha * MathHelper.lerp(flash, ribbon.alphaAt(r, c), 1.0f);
+                float a01 = alpha * MathHelper.lerp(flash, ribbon.alphaAt(r, c + 1), 1.0f);
+                float a11 = alpha * MathHelper.lerp(flash, ribbon.alphaAt(r + 1, c + 1), 1.0f);
+                float a10 = alpha * MathHelper.lerp(flash, ribbon.alphaAt(r + 1, c), 1.0f);
 
-                quad(consumer, entry, profile, normal,
+                quad(consumer, entry, red, green, blue, normal,
                     p00, u0, v0, a00, p01, u0, v1, a01, p11, u1, v1, a11, p10, u1, v0, a10);
                 // Reverse winding: the slash has to be visible from whichever side the player is on.
-                quad(consumer, entry, profile, normal.multiply(-1.0),
+                quad(consumer, entry, red, green, blue, normal.multiply(-1.0),
                     p10, u1, v0, a10, p11, u1, v1, a11, p01, u0, v1, a01, p00, u0, v0, a00);
             }
         }
     }
 
-    private static void quad(VertexConsumer consumer, MatrixStack.Entry entry, SlashProfile profile,
-                             Vec3d normal,
+    private static void quad(VertexConsumer consumer, MatrixStack.Entry entry,
+                             float red, float green, float blue, Vec3d normal,
                              Vec3d a, float au, float av, float aa,
                              Vec3d b, float bu, float bv, float ba,
                              Vec3d c, float cu, float cv, float ca,
                              Vec3d d, float du, float dv, float da) {
-        vertex(consumer, entry, profile, normal, a, au, av, aa);
-        vertex(consumer, entry, profile, normal, b, bu, bv, ba);
-        vertex(consumer, entry, profile, normal, c, cu, cv, ca);
-        vertex(consumer, entry, profile, normal, d, du, dv, da);
+        vertex(consumer, entry, red, green, blue, normal, a, au, av, aa);
+        vertex(consumer, entry, red, green, blue, normal, b, bu, bv, ba);
+        vertex(consumer, entry, red, green, blue, normal, c, cu, cv, ca);
+        vertex(consumer, entry, red, green, blue, normal, d, du, dv, da);
     }
 
-    private static void vertex(VertexConsumer consumer, MatrixStack.Entry entry, SlashProfile profile,
+    private static void vertex(VertexConsumer consumer, MatrixStack.Entry entry,
+                               float red, float green, float blue,
                                Vec3d normal, Vec3d position, float u, float v, float alpha) {
         consumer.vertex(entry.getPositionMatrix(), (float) position.x, (float) position.y, (float) position.z)
-            .color(profile.red(), profile.green(), profile.blue(), MathHelper.clamp(alpha, 0.0f, 1.0f))
+            .color(red, green, blue, MathHelper.clamp(alpha, 0.0f, 1.0f))
             .texture(u, v)
             .overlay(OverlayTexture.DEFAULT_UV)
             .light(FULL_BRIGHT)

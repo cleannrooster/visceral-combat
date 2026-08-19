@@ -127,6 +127,11 @@ public class CombatEventsClient {
         BetterCombatClientEvents.ATTACK_HIT.register((clientPlayerEntity, attackHand, list, entity) -> {
             var config = VisceralCombatClient.clientConfig;
             if (config == null) return; // not synced from the server yet: do nothing
+            if (!list.isEmpty()) {
+                // Hit feedback on the actor's own ribbon. Local only, on purpose: bystanders learn
+                // about the hit from the victim, and the relayed swing stays pure geometry.
+                SlashEffectManager.flashLocalHit(clientPlayerEntity);
+            }
             Vec3d vecMove = clientPlayerEntity.getRotationVec(1.0F)
                 .crossProduct(new Vec3d(0,
                     !attackHand.attack().hitbox().equals(WeaponAttributes.HitBoxShape.HORIZONTAL_PLANE) ? 0
