@@ -42,6 +42,8 @@ public class ServerConfig implements ConfigData {
     public float dirCoeff = 1F;
     @Comment("Draw the slash ribbon: an arc laid over the weapon's real Better Combat hitbox")
     public boolean particles = true;
+    @Comment("Show each player's slash ribbons to everyone nearby (if false, players only see their own)")
+    public boolean ribbonsVisibleToOthers = true;
     @Comment("Hitstop on Self")
     public boolean hitstopSelf = true;
     @Comment("Hitstop on Enemies")

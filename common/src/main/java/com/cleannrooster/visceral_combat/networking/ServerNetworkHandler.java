@@ -60,6 +60,12 @@ public class ServerNetworkHandler {
      * should not be able to paint arbitrarily large arcs on anyone else's screen.
      */
     private static void relaySwing(ServerPlayerEntity attacker, AttackSwing swing) {
+        // Self-only mode: the attacker already drew their own ribbon client-side; nobody else gets one.
+        // Enforced here rather than trusted to the client, so a modified client cannot opt back in.
+        ServerConfig config = VisceralCombat.config;
+        if (config != null && !config.ribbonsVisibleToOthers) {
+            return;
+        }
         List<ServerPlayerEntity> viewers = new ArrayList<>();
         for (ServerPlayerEntity viewer : attacker.getServerWorld().getPlayers()) {
             if (viewer != attacker && viewer.squaredDistanceTo(attacker) <= SWING_VISIBLE_RANGE_SQ) {
