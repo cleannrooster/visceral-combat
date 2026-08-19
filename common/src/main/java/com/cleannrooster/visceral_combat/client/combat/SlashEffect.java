@@ -23,6 +23,15 @@ public final class SlashEffect {
     /** Blocks of the arc left undrawn in front of the viewer's own camera. */
     private static final float FIRST_PERSON_CLEARANCE = 1.25f;
 
+    /**
+     * How long the hit flash takes to drain back to the profile's own color.
+     *
+     * <p>Shorter than the default fade-out on purpose: the ribbon should visibly return to white
+     * before it finishes dissolving, so the flash reads as "that connected" rather than "hits turn
+     * the ribbon red until it is gone".
+     */
+    private static final float HIT_FLASH_TICKS = 3.0f;
+
     private final AttackSwing swing;
     private final SlashProfile profile;
     private final LivingEntity attacker;
@@ -30,6 +39,8 @@ public final class SlashEffect {
 
     private AttackFrame frame;
     private int age;
+    /** Age at which this swing's hit resolved, or MIN_VALUE while it has hit nothing. */
+    private int hitAge = Integer.MIN_VALUE;
 
     SlashEffect(AttackSwing swing, SlashProfile profile, LivingEntity attacker, AttackFrame frame) {
         this.swing = swing;
@@ -77,6 +88,34 @@ public final class SlashEffect {
             this.frame = AttackFrame.of(this.attacker, tickDelta);
         }
         return this.frame;
+    }
+
+    /** True when this ribbon belongs to {@code attacker}'s swing. */
+    boolean isFor(LivingEntity attacker) {
+        return this.attacker == attacker;
+    }
+
+    /**
+     * Record that this swing just connected.
+     *
+     * <p>Stamped one tick ahead of the current age: Better Combat's hit event fires during the client
+     * tick, and the manager ages this effect at the end of that same tick — so the first frame drawn
+     * after the hit should see zero elapsed time and the flash at full strength.
+     */
+    void markHit() {
+        this.hitAge = this.age + 1;
+    }
+
+    /**
+     * Strength of the hit flash right now, 1 at the moment of impact draining to 0 over
+     * {@link #HIT_FLASH_TICKS}. Zero for a swing that never connected.
+     */
+    public float flashStrength(float tickDelta) {
+        if (this.hitAge == Integer.MIN_VALUE) {
+            return 0.0f;
+        }
+        float elapsed = Math.max(0.0f, this.age + tickDelta - this.hitAge);
+        return MathHelper.clamp(1.0f - elapsed / HIT_FLASH_TICKS, 0.0f, 1.0f);
     }
 
     void tick() {

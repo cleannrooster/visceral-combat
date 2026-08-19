@@ -73,6 +73,21 @@ public final class SlashEffectManager {
             AttackFrame.of(attacker, 1.0f)));
     }
 
+    /**
+     * Flash the attacker's current swing red — hit feedback for the actor, deliberately never relayed.
+     *
+     * <p>The newest effect belonging to the attacker is the swing that just resolved; Better Combat
+     * cannot have two upswings in flight, so anything older of theirs is already fading out.
+     */
+    public static void flashLocalHit(LivingEntity attacker) {
+        for (int i = ACTIVE.size() - 1; i >= 0; i--) {
+            if (ACTIVE.get(i).isFor(attacker)) {
+                ACTIVE.get(i).markHit();
+                return;
+            }
+        }
+    }
+
     private static void tick() {
         if (ACTIVE.isEmpty()) {
             return;
