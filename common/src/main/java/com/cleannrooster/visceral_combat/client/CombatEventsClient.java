@@ -24,6 +24,7 @@ import net.minecraft.network.PacketByteBuf;
 import net.minecraft.util.math.Vec3d;
 
 import java.util.Comparator;
+import java.util.Locale;
 
 @Environment(EnvType.CLIENT)
 public class CombatEventsClient {
@@ -193,13 +194,53 @@ public class CombatEventsClient {
             PlayerAttackHelper.getAttackCooldownTicksCapped(player) * (float) attackHand.upswingRate()));
         // Which way the blade travels is the animation's business — the volume is symmetric about the
         // look direction — but the arc has to sweep the way the arms do.
-        String animation = attack.animation();
-        boolean rightToLeft = !attackHand.isOffHand()
-            && (!animation.contains("left") || animation.contains("right"));
-        boolean reversed = shape == SlashShape.VERTICAL_SWEEP
-            ? animation.contains("up")  // overhead chops fall; the rare rising cut goes the other way
-            : rightToLeft;
+        boolean reversed = swingReversed(shape, attack.animation(), attackHand.isOffHand());
         return new AttackSwing(shape, range, (float) attack.angle(), swingTicks, reversed);
+    }
+
+
+    /**
+     * Which way the blade travels through its arc, read off the animation's name.
+     *
+     * <p>Animation packs state direction in the name, but not in one vocabulary. Better Combat and
+     * simplyswords write the words {@code right}/{@code left} (the side the swing <em>starts</em> from);
+     * the Malfu pack writes travel as letter pairs — {@code rl}/{@code lr} for single cuts,
+     * {@code rlr}/{@code lrl} for combos (whose ribbon shows the leading cut), {@code updown}/
+     * {@code downup} for vertical travel. The tokens have to be matched whole, split on the
+     * separators: {@code one_handed_lr_rleg_lead} contains the letters "rl" inside "rleg", and a
+     * substring match would read that left-to-right swing as right-to-left.
+     *
+     * <p>In {@link com.cleannrooster.visceral_combat.combat.AttackGeometry}'s convention, a
+     * non-reversed sweep travels toward the plane axis: left-to-right for horizontal arcs, rising
+     * for vertical ones.
+     *
+     * <p>Off-hand attacks play the same animation mirrored, which flips the lateral direction — and
+     * only the lateral one: a mirrored overhead chop still falls.
+     */
+    private static boolean swingReversed(SlashShape shape, String animation, boolean offHand) {
+        String[] tokens = animation.toLowerCase(Locale.ROOT).split("[^a-z0-9]+");
+        if (shape == SlashShape.VERTICAL_SWEEP) {
+            for (String token : tokens) {
+                switch (token) {
+                    case "downup": return false; // rising cut
+                    case "updown": return true;  // falling cut
+                    default: break;
+                }
+            }
+            return true; // chops fall unless the name says otherwise
+        }
+        Boolean rightToLeft = null;
+        for (String token : tokens) {
+            switch (token) {
+                case "right", "rl", "rlr" -> rightToLeft = true;
+                case "left", "lr", "lrl" -> rightToLeft = false;
+                default -> { continue; }
+            }
+            break;
+        }
+        // Stock packs lead with a right-hand swing, so an unmarked name reads right-to-left.
+        boolean rl = rightToLeft == null || rightToLeft;
+        return rl != offHand;
     }
 
     /**
