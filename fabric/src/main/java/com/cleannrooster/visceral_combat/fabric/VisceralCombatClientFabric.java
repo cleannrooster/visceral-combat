@@ -3,6 +3,7 @@ package com.cleannrooster.visceral_combat.fabric;
 import com.cleannrooster.visceral_combat.VisceralCombatClient;
 import com.cleannrooster.visceral_combat.client.ChargeHudRenderer;
 import com.cleannrooster.visceral_combat.client.combat.SlashEffectManager;
+import com.cleannrooster.visceral_combat.client.targeting.TargetHighlightRenderer;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
@@ -28,8 +29,10 @@ public class VisceralCombatClientFabric implements ClientModInitializer {
 
         // Loader shim for the shared slash renderer. Drawn after translucent terrain and particles so the
         // arcs blend over the world; all the geometry lives in common.
-        WorldRenderEvents.AFTER_TRANSLUCENT.register(context ->
-            SlashEffectManager.render(context.matrixStack(), context.camera(), context.tickCounter().getTickDelta(false)));
+        WorldRenderEvents.AFTER_TRANSLUCENT.register(context -> {
+            SlashEffectManager.render(context.matrixStack(), context.camera(), context.tickCounter().getTickDelta(false));
+            TargetHighlightRenderer.render(context.matrixStack(), context.camera(), context.tickCounter().getTickDelta(false));
+        });
 
         VisceralCombatClient.clientInit();
     }

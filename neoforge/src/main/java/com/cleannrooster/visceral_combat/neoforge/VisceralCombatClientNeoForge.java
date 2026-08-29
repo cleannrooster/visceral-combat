@@ -3,6 +3,7 @@ package com.cleannrooster.visceral_combat.neoforge;
 import com.cleannrooster.visceral_combat.VisceralCombatClient;
 import com.cleannrooster.visceral_combat.client.ChargeHudRenderer;
 import com.cleannrooster.visceral_combat.client.combat.SlashEffectManager;
+import com.cleannrooster.visceral_combat.client.targeting.TargetHighlightRenderer;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
 import net.neoforged.api.distmarker.Dist;
@@ -40,6 +41,8 @@ public class VisceralCombatClientNeoForge {
     private static void onRenderLevelStage(RenderLevelStageEvent event) {
         if (event.getStage() == RenderLevelStageEvent.Stage.AFTER_PARTICLES) {
             SlashEffectManager.render(event.getPoseStack(), event.getCamera(),
+                event.getPartialTick().getTickDelta(false));
+            TargetHighlightRenderer.render(event.getPoseStack(), event.getCamera(),
                 event.getPartialTick().getTickDelta(false));
         }
     }

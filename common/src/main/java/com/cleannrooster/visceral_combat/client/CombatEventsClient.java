@@ -3,27 +3,30 @@ package com.cleannrooster.visceral_combat.client;
 import com.cleannrooster.visceral_combat.VisceralCombatClient;
 import com.cleannrooster.visceral_combat.api.HitstopAccessor;
 import com.cleannrooster.visceral_combat.client.combat.SlashEffectManager;
+import com.cleannrooster.visceral_combat.client.combat.SwingReader;
+import com.cleannrooster.visceral_combat.client.targeting.AttackTracking;
+import com.cleannrooster.visceral_combat.client.targeting.TargetAcquisition;
+import com.cleannrooster.visceral_combat.client.targeting.TargetHighlightRenderer;
 import com.cleannrooster.visceral_combat.combat.AttackSwing;
-import com.cleannrooster.visceral_combat.combat.SlashShape;
 import com.cleannrooster.visceral_combat.config.LungeMode;
 import com.cleannrooster.visceral_combat.networking.Packet;
 import dev.architectury.networking.NetworkManager;
-import net.bettercombat.api.AttackHand;
 import net.bettercombat.api.WeaponAttributes;
-import net.bettercombat.api.client.AttackRangeExtensions;
 import net.bettercombat.api.client.BetterCombatClientEvents;
-import net.bettercombat.logic.PlayerAttackHelper;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.util.math.Vec3d;
 
-import java.util.Comparator;
-import java.util.Locale;
-
+/**
+ * Wires Better Combat's client attack events into Visceral Combat's subsystems: the lunge, the slash
+ * ribbon, hit feedback (hitstop/recoil/impact), and the target-assist commitment. This class decides
+ * <em>when</em> each subsystem runs; the how lives in the subsystems — {@link SwingReader} reads the
+ * swing off the attack, {@link AttackTracking} owns commitment and correction, {@link SlashEffectManager}
+ * owns the visuals.
+ */
 @Environment(EnvType.CLIENT)
 public class CombatEventsClient {
 
@@ -32,6 +35,15 @@ public class CombatEventsClient {
             var config = VisceralCombatClient.clientConfig;
             if (config == null) return; // not synced from the server yet: do nothing
             var now = player.getWorld().getTime();
+
+            // The swing about to happen, read once off Better Combat's own attack data; the ribbon,
+            // the commitment, and the lunge bias below all describe this same volume.
+            AttackSwing swing = attackHand.attack() != null ? SwingReader.describe(player, attackHand) : null;
+
+            // Commit to whatever target is acquired at the moment the swing starts. From here until
+            // the hit resolves, AttackTracking (ticked from VisceralCombatClient) may make small
+            // clamped facing corrections toward this — and only this — entity.
+            AttackTracking.begin(player, swing, TargetAcquisition.acquiredTarget(), config);
             if (config.moveAttack
                     && (!config.requireSprint || player.isSprinting())
                     && !VisceralCombatClient.lungePending
@@ -73,6 +85,10 @@ public class CombatEventsClient {
                     lungeDir = movement.multiply(backwardsCoeff);
                 }
 
+                // RPG assist: bend the mode's lunge toward the committed target and scale it to the
+                // range gap that actually needs closing. A no-op in OFF/SOFT or with no commitment.
+                lungeDir = AttackTracking.biasLunge(lungeDir, player, config);
+
                 // Halved code-side so existing configs keep their original lungeSpeed scale.
                 var lungeSpeed = config.lungeSpeed * 0.5;
                 var vecMoveEnemy = lungeDir.multiply(speed).multiply(lungeSpeed, 0, lungeSpeed);
@@ -106,8 +122,7 @@ public class CombatEventsClient {
                 }
             }
 
-            if (config.particles && attackHand.attack() != null) {
-                AttackSwing swing = describeSwing(player, attackHand);
+            if (config.particles) {
                 if (swing != null) {
                     // Draw it here and now rather than waiting for the server to echo it back: the
                     // ribbon has to start on the same frame the animation does.
@@ -128,6 +143,9 @@ public class CombatEventsClient {
                 // Hit feedback on the actor's own ribbon. Local only, on purpose: bystanders learn
                 // about the hit from the victim, and the relayed swing stays pure geometry.
                 SlashEffectManager.flashLocalHit(clientPlayerEntity);
+                // And on the target marker, if the enemy under it is among the hit — same red, same
+                // drain, so ring and ribbon confirm the connect as one gesture.
+                TargetHighlightRenderer.flashHit(list, clientPlayerEntity.getWorld().getTime());
             }
             Vec3d vecMove = clientPlayerEntity.getRotationVec(1.0F)
                 .crossProduct(new Vec3d(0,
@@ -172,121 +190,5 @@ public class CombatEventsClient {
                 }
             }
         });
-    }
-
-    /**
-     * Read the swing about to happen off the Better Combat attack that fired it.
-     *
-     * <p>Every value here is one Better Combat itself will use when the hit resolves: the reach its
-     * target finder ends up with (see {@link #effectiveRange}), the arc its radial filter tests against,
-     * the hitbox shape that decides which plane the volume lies in, and the tick the damage lands on.
-     * Nothing is invented for the visual's benefit, which is what lets the ribbon be the hitbox rather
-     * than a decoration near it.
-     *
-     * @return null when the attack has no reach to draw — Better Combat would hit nothing either
-     */
-    private static AttackSwing describeSwing(ClientPlayerEntity player, AttackHand attackHand) {
-        WeaponAttributes.Attack attack = attackHand.attack();
-        // Better Combat 2.x composes reach out of the player's entity_interaction_range attribute, the
-        // weapon's range_bonus / attack_range override, any range attribute on the item itself, and the
-        // per-attack range_multiplier — getRangeForItem is BC's own public funnel for the first three,
-        // read the same way its client attack hook reads it. Stock 2.x weapons author range_bonus and
-        // leave attack_range at 0, so the old "attackRange() is the reach" assumption reads 0 for every
-        // vanilla weapon now.
-        double reach = PlayerAttackHelper.getRangeForItem(player, attackHand.itemStack())
-            * attack.rangeMultiplier();
-        float range = (float) effectiveRange(player, reach);
-        if (range <= 0.0f) {
-            return null;
-        }
-        SlashShape shape = SlashShape.from(attack.hitbox());
-        // The damage is evaluated when the upswing completes, so that is when the ribbon finishes its
-        // cut. Same expression Better Combat uses to schedule the hit (see its client attack hook).
-        int swingTicks = Math.max(1, Math.round(
-            PlayerAttackHelper.getAttackCooldownTicksCapped(player) * (float) attackHand.upswingRate()));
-        // Which way the blade travels is the animation's business — the volume is symmetric about the
-        // look direction — but the arc has to sweep the way the arms do.
-        boolean reversed = swingReversed(shape, attack.animation(), attackHand.isOffHand());
-        return new AttackSwing(shape, range, (float) attack.angle(), swingTicks, reversed);
-    }
-
-
-    /**
-     * Which way the blade travels through its arc, read off the animation's name.
-     *
-     * <p>Animation packs state direction in the name, but not in one vocabulary. Better Combat and
-     * simplyswords write the words {@code right}/{@code left} (the side the swing <em>starts</em> from);
-     * the Malfu pack writes travel as letter pairs — {@code rl}/{@code lr} for single cuts,
-     * {@code rlr}/{@code lrl} for combos (whose ribbon shows the leading cut), {@code updown}/
-     * {@code downup} for vertical travel. The tokens have to be matched whole, split on the
-     * separators: {@code one_handed_lr_rleg_lead} contains the letters "rl" inside "rleg", and a
-     * substring match would read that left-to-right swing as right-to-left.
-     *
-     * <p>In {@link com.cleannrooster.visceral_combat.combat.AttackGeometry}'s convention, a
-     * non-reversed sweep travels toward the plane axis: left-to-right for horizontal arcs, rising
-     * for vertical ones.
-     *
-     * <p>Off-hand attacks play the same animation mirrored, which flips the lateral direction — and
-     * only the lateral one: a mirrored overhead chop still falls.
-     */
-    private static boolean swingReversed(SlashShape shape, String animation, boolean offHand) {
-        String[] tokens = animation.toLowerCase(Locale.ROOT).split("[^a-z0-9]+");
-        if (shape == SlashShape.VERTICAL_SWEEP) {
-            for (String token : tokens) {
-                switch (token) {
-                    case "downup": return false; // rising cut
-                    case "updown": return true;  // falling cut
-                    default: break;
-                }
-            }
-            return true; // chops fall unless the name says otherwise
-        }
-        Boolean rightToLeft = null;
-        for (String token : tokens) {
-            switch (token) {
-                case "right", "rl", "rlr" -> rightToLeft = true;
-                case "left", "lr", "lrl" -> rightToLeft = false;
-                default -> { continue; }
-            }
-            break;
-        }
-        // Stock packs lead with a right-hand swing, so an unmarked name reads right-to-left.
-        boolean rl = rightToLeft == null || rightToLeft;
-        return rl != offHand;
-    }
-
-    /**
-     * The reach Better Combat will actually test with, once any registered range extensions have been
-     * applied.
-     *
-     * <p>Mirrors {@code TargetFinder.applyAttackRangeModifiers}, which is private: every source is asked
-     * about the weapon's <em>base</em> reach rather than a progressively modified one, the modifiers it
-     * returns are ordered additions before multiplications, and then folded in that order.
-     *
-     * <p>Without this, a mod that extends reach — an enchantment, a buff — would move the damage volume
-     * and leave the ribbon drawn on the weapon's unmodified range, which is exactly the kind of quiet
-     * disagreement between visual and hitbox this whole system exists to prevent.
-     *
-     * <p>The base handed in is already the composed reach (player attribute + weapon bonus + attack
-     * multiplier); extensions apply after all of that, exactly where BC applies them.
-     */
-    private static double effectiveRange(ClientPlayerEntity player, double baseRange) {
-        var sources = AttackRangeExtensions.sources();
-        if (sources.isEmpty()) {
-            return baseRange;
-        }
-        var context = new AttackRangeExtensions.Context(player, baseRange);
-        var modifiers = sources.stream()
-            .map(source -> source.apply(context))
-            .sorted(Comparator.comparingInt(AttackRangeExtensions.Modifier::operationOrder))
-            .toList();
-        double range = baseRange;
-        for (var modifier : modifiers) {
-            switch (modifier.operation()) {
-                case ADD -> range += modifier.value();
-                case MULTIPLY -> range *= modifier.value();
-            }
-        }
-        return range;
     }
 }

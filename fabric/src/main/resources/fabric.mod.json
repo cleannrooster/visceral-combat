@@ -9,7 +9,11 @@
   "environment": "*",
   "entrypoints": {
     "main": ["com.cleannrooster.visceral_combat.fabric.VisceralCombatFabric"],
-    "client": ["com.cleannrooster.visceral_combat.fabric.VisceralCombatClientFabric"]
+    "client": ["com.cleannrooster.visceral_combat.fabric.VisceralCombatClientFabric"],
+    "modmenu": ["com.cleannrooster.visceral_combat.fabric.ModMenuIntegration"]
+  },
+  "suggests": {
+    "modmenu": "*"
   },
   "mixins": ["visceral_combat.mixins.json"],
   "depends": {

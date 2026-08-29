@@ -8,7 +8,9 @@
 		"PlayerMixin",
 		"PlayerMixinTwo"
 	],
-	"client": [],
+	"client": [
+		"SlashParticleUtilMixin"
+	],
 	"injectors": {
 		"defaultRequire": 1
 	}

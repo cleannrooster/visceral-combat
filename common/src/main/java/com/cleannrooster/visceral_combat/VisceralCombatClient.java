@@ -3,6 +3,8 @@ package com.cleannrooster.visceral_combat;
 import com.cleannrooster.visceral_combat.api.HitstopAccessor;
 import com.cleannrooster.visceral_combat.client.CombatEventsClient;
 import com.cleannrooster.visceral_combat.client.combat.SlashEffectManager;
+import com.cleannrooster.visceral_combat.client.targeting.AttackTracking;
+import com.cleannrooster.visceral_combat.client.targeting.TargetAcquisition;
 import com.cleannrooster.visceral_combat.config.ServerConfig;
 import com.cleannrooster.visceral_combat.networking.ClientNetworkHandler;
 import com.cleannrooster.visceral_combat.networking.Packet;
@@ -81,7 +83,13 @@ public class VisceralCombatClient {
                 resetCharges();
                 lungeImpulse = Vec3d.ZERO;
                 SlashEffectManager.clear();
+                TargetAcquisition.clear();
+                AttackTracking.clear();
             }
+            // Acquisition runs after the tick so entity positions are fresh; the camera smoothing
+            // restores the interpolation basis for whatever correction tracking applied this tick.
+            TargetAcquisition.tick(client);
+            AttackTracking.smoothCamera(client);
             if (clientConfig != null) {
                 setMaxCharges(clientConfig.maxCharges);
             }
@@ -97,6 +105,9 @@ public class VisceralCombatClient {
 
         ClientTickEvent.CLIENT_PRE.register(client -> {
             if (client.player == null) return;
+            // Swing tracking corrects facing before this tick's movement and Better Combat upswing
+            // countdown, so the final tick's correction still shapes the volume the hit tests.
+            AttackTracking.tick(client);
             // DUELING lunge smoothing: apply the decaying tail this tick (before movement) and decay it.
             if (clientConfig != null && lungeImpulse.lengthSquared() > 0.02 * 0.02) {
                 applyLungeVelocity(client.player, clientConfig, lungeImpulse.x, lungeImpulse.z);
