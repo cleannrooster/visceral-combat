@@ -4,12 +4,12 @@ import me.shedaniel.autoconfig.ConfigData;
 import me.shedaniel.autoconfig.annotation.Config;
 import me.shedaniel.cloth.clothconfig.shadowed.blue.endless.jankson.Comment;
 
-@Config(name = "server_v2")
+@Config(name = "server_v3")
 public class ServerConfig implements ConfigData {
     @Comment("Forward Lunge on attack")
     public boolean moveAttack = true;
     @Comment("Require the player to be sprinting in order to lunge on attack")
-    public boolean requireSprint = true;
+    public boolean requireSprint = false;
     @Comment("Lunge mode: ARCADE (move in input direction), DUELING (always lunge forward), HYBRID (forward + configurable side influence)")
     public LungeMode lungeMode = LungeMode.HYBRID;
     @Comment("HYBRID mode only: how much left/right movement input is blended into the forward lunge (0 = pure forward, 1 = full sideways influence)")
@@ -17,15 +17,15 @@ public class ServerConfig implements ConfigData {
     @Comment("ARCADE mode only: coefficient applied to lunge when moving more than 90 degrees away from look direction (0 = no backwards lunge, 1 = full)")
     public float backwardsLungeCoeff = 0.4F;
     @Comment("Forward Lunge speed coeff")
-    public float lungeSpeed = 2.4F;
+    public float lungeSpeed = 1.6F;
     @Comment("Forward Lunge speed cap")
-    public float lungeSpeedCap = 4F;
+    public float lungeSpeedCap = 2.8F;
     @Comment("Minimum attack speed used for lunge/charge calculations (attack speeds below this are treated as this)")
     public float minAttackSpeed = 0.8F;
     @Comment("Maximum attack speed used for lunge/charge calculations (attack speeds above this are treated as this)")
     public float maxAttackSpeed = 4.0F;
     @Comment("Enable the lunge charge system (if false, lunges never require or consume charges and the charge HUD is hidden)")
-    public boolean chargesEnabled = true;
+    public boolean chargesEnabled = false;
     @Comment("Number of lunge charges the player has")
     public int maxCharges = 4;
     @Comment("Lunge charge recovery time, as a multiple of the weapon's attack cooldown (e.g. 8 = a spent charge takes 8 full attack cooldowns to recover; higher = slower recovery)")
